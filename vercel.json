@@ -1,11 +1,6 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "functions": {
-    "api/index.ts": {
-      "runtime": "now-node@18"
-    }
-  }
+  "framework": "vite"
 }
 
