@@ -53,8 +53,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Lead Generator Premium States
-  const [leadKeyword, setLeadKeyword] = useState("Falegname");
-  const [leadLocation, setLeadLocation] = useState("Lugano");
+  const [leadKeyword, setLeadKeyword] = useState("");
+  const [leadLocation, setLeadLocation] = useState("");
   const [leads, setLeads] = useState<any[]>(() => {
     // Standard mock data so the app has ready-made high quality content upon loading
     return [
