@@ -40,7 +40,7 @@ const generateWithFallbackAndRetry = async (
 
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const response = await activeGenAI.generateContent({
+        const response = await activeGenAI.models.generateContent({
           model,
           contents,
           systemInstruction,
