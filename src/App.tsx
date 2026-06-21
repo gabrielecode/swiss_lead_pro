@@ -55,76 +55,7 @@ export default function App() {
   // Lead Generator Premium States
   const [leadKeyword, setLeadKeyword] = useState("");
   const [leadLocation, setLeadLocation] = useState("");
-  const [leads, setLeads] = useState<any[]>(() => {
-    // Standard mock data so the app has ready-made high quality content upon loading
-    return [
-      {
-        id: "1",
-        company: "VerdeAlpi Falegnameria d'Arte",
-        sector: "Falegnameria e Serramenti",
-        address: "Via Trevano 15, 6900 Lugano (TI)",
-        phone: "+41 91 921 54 88",
-        email: "info@verdealpifl.ch",
-        website: "https://www.verdealpifl.ch",
-        social: "Instagram @verdealpi_legno",
-        marketingScore: 52,
-        auditResult: "Sito antiquato senza HTTPS, nessun profilo Instagram attivo trovato (solo dicitura), manca Google Pixel e modulo contatti rotto.",
-        customStrategy: "Proporre un redesign completo con WordPress/Webflow, creazione portfolio lavori ad alta definizione e attivazione di campagne Meta Ads localizzate per serramenti in PVC ad alto isolamento."
-      },
-      {
-        id: "2",
-        company: "Müller & Partner Schreinerei AG",
-        sector: "Schreinerei / Arredamento",
-        address: "Badenerstrasse 412, 8004 Zürich (ZH)",
-        phone: "+41 44 242 80 90",
-        email: "kontakt@mueller-schreinerei.ch",
-        website: "https://www.mueller-schreinerei.ch",
-        social: "LinkedIn: Müller Schreinerei AG",
-        marketingScore: 78,
-        auditResult: "Sito web veloce con certificato SSL e ben strutturato. Tuttavia, mancano del tutto campagne Google Search attive sul keyword ad alto costo (Schreinerei Zürich). I canali Instagram sono poco curati.",
-        customStrategy: "Proporre un pacchetto di lead generation Google Ads mensile e ottimizzazione della scheda Google Business Profile per dominare le ricerche locali a Zurigo ovest."
-      },
-      {
-        id: "3",
-        company: "SwissWood Créations Sàrl",
-        sector: "Ebanisteria e Design",
-        address: "Rue du Sablon 18, 1110 Morges (VD)",
-        phone: "+41 21 802 33 44",
-        email: "laurent@swisswood-sarl.ch",
-        website: "Non disponibile",
-        social: "Non disponibile",
-        marketingScore: 92,
-        auditResult: "L'attività esiste e ha ottime recensioni ma NON possiede un sito web attivo o canali social. Reperibile solo su elenchi telefonici obsolete.",
-        customStrategy: "Opportunità ad alto valore: offrire un pacchetto 'Presenza Digitale Totale' (Sito Web Portfolio, Scheda Google Maps verificata, Profilo Instagram e setup prima campagna di recensioni)."
-      },
-      {
-        id: "4",
-        company: "Studio Fiduciario e Fiscale Lugano",
-        sector: "Consulenza aziendale e Fiscale",
-        address: "Via Nassa 29, 6900 Lugano (TI)",
-        phone: "+41 91 910 22 55",
-        email: "Contatto via Form",
-        website: "https://www.fiduciarianassa.ch",
-        social: "Non disponibile",
-        marketingScore: 45,
-        auditResult: "Sito web corporate classico ma ottimizzato male per dispositivi mobili. Nessuna attività di newsletter o social network per catturare leads b2b svizzeri o frontalieri.",
-        customStrategy: "Presentare un piano di Content Marketing e SEO focalizzato sulla tassazione dei frontalieri e servizi aziendali per attrarre clienti esteri di valore elevato."
-      },
-      {
-        id: "5",
-        company: "Suter Carpenterie e Tetti",
-        sector: "Carpenteria in legno",
-        address: "Sempachstrasse 5, 6003 Luzern (LU)",
-        phone: "+41 41 210 55 66",
-        email: "info@suter-tetti.ch",
-        website: "https://www.suter-tetti.ch",
-        social: "Facebook: Suter Luzern",
-        marketingScore: 65,
-        auditResult: "Hanno un sito web decente ma non converte: nessun bottone di contatto prominente o call-to-action chiara. Nessun tracciamento installato.",
-        customStrategy: "Proporre il posizionamento di un widget di chat rapido (WhatsApp Business), configurazione Google Analytics 4 e lead generation mirata alle ristrutturazioni di tetti e mansarde prima dell'inverno."
-      }
-    ];
-  });
+  const [leads, setLeads] = useState<any[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [leadsProgress, setLeadsProgress] = useState<string>("");
   const [leadsError, setLeadsError] = useState<string | null>(null);
