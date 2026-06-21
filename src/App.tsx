@@ -31,7 +31,7 @@ import {
   Filter,
   Target,
   Award,
-  Key
+  Power
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
@@ -513,7 +513,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-semibold transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <Power className="w-3.5 h-3.5" />
                 {t('app.logout', language)}
               </button>
             </div>
