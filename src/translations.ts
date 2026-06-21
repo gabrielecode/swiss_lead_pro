@@ -19,6 +19,38 @@ export const translations: Record<Language, Record<string, string>> = {
     'welcome.login.button': 'Accedi',
     'welcome.version': 'Versione 1.5 • Lead Generation Suite per la Svizzera',
     
+    // What Section
+    'welcome.what.title': 'Cosa fa Swiss Lead Pro?',
+    'welcome.what.description': 'Una piattaforma intelligente di B2B lead generation che combina tecnologie avanzate per individuare, qualificare e contattare aziende svizzere ad alto potenziale.',
+    'welcome.what.point1': '🔍 Ricerca intelligente nei dati di Google Maps e web',
+    'welcome.what.point2': '✓ Qualificazione automatica con AI (Gemini)',
+    'welcome.what.point3': '✉️ Generazione di email personalizzate',
+    
+    // Benefits Section
+    'welcome.benefits.title': 'Vantaggi Principali',
+    'welcome.benefit1.title': '⚡ Tempo Risparmito',
+    'welcome.benefit1.desc': 'Da settimane a minuti. Estrai centinaia di lead qualificati in una sola ricerca, invece di cercare manualmente.',
+    'welcome.benefit2.title': '🎯 Precisione Elevata',
+    'welcome.benefit2.desc': 'Dati verificati in tempo reale con Google Maps e AI, per garantire contatti reali e aggiornati.',
+    'welcome.benefit3.title': '📈 ROI Garantito',
+    'welcome.benefit3.desc': 'Email personalizzate con tassi di apertura 40% più alti. Conversioni misurabili da giorno uno.',
+    
+    // How Works Section
+    'welcome.how.title': 'Come Funziona',
+    'welcome.how.step1.number': '1',
+    'welcome.how.step1.title': 'Cerca per Settore & Luogo',
+    'welcome.how.step1.desc': 'Inserisci il tipo di azienda (es. "Falegname") e la città o il raggio d\'azione. Accesso ai 26 Cantoni.',
+    'welcome.how.step2.number': '2',
+    'welcome.how.step2.title': 'AI Qualifica i Dati',
+    'welcome.how.step2.desc': 'La nostra AI Gemini verifica i contatti, scarica siti web, estrae email e informazioni aziendali in tempo reale.',
+    'welcome.how.step3.number': '3',
+    'welcome.how.step3.title': 'Esporta & Contatta',
+    'welcome.how.step3.desc': 'Scarica in CSV/JSON, genera email personalizzate o integra direttamente con CRM/marketing automation tools.',
+    
+    // CTA Section
+    'welcome.cta.title': 'Inizia Gratis Oggi',
+    'welcome.cta.subtext': 'Nessuna carta di credito richiesta. 5 ricerche gratuite al primo accesso.',
+    
     // Main App
     'app.search.keyword': 'Parola chiave (es. Falegname, Medico)',
     'app.search.location': 'Città/Luogo',
@@ -68,6 +100,38 @@ export const translations: Record<Language, Record<string, string>> = {
     'welcome.login.email': 'Geben Sie Ihre E-Mail ein',
     'welcome.login.button': 'Anmelden',
     'welcome.version': 'Version 1.5 • Lead Generation Suite für die Schweiz',
+    
+    // What Section
+    'welcome.what.title': 'Was ist Swiss Lead Pro?',
+    'welcome.what.description': 'Eine intelligente B2B-Lead-Generation-Plattform, die fortschrittliche Technologien kombiniert, um schweizerische Unternehmen mit hohem Potenzial zu finden, zu qualifizieren und zu kontaktieren.',
+    'welcome.what.point1': '🔍 Intelligente Suche in Google Maps und Web-Daten',
+    'welcome.what.point2': '✓ Automatische Qualifizierung mit KI (Gemini)',
+    'welcome.what.point3': '✉️ Generierung personalisierter E-Mails',
+    
+    // Benefits Section
+    'welcome.benefits.title': 'Hauptvorteile',
+    'welcome.benefit1.title': '⚡ Zeitersparnis',
+    'welcome.benefit1.desc': 'Von Wochen zu Minuten. Extrahieren Sie Hunderte qualifizierter Leads in einer Suche statt manuell zu suchen.',
+    'welcome.benefit2.title': '🎯 Hohe Präzision',
+    'welcome.benefit2.desc': 'Daten in Echtzeit mit Google Maps und KI verifiziert, um echte und aktuelle Kontakte zu garantieren.',
+    'welcome.benefit3.title': '📈 Garantierter ROI',
+    'welcome.benefit3.desc': 'Personalisierte E-Mails mit 40% höheren Öffnungsraten. Messbare Conversionen ab Tag eins.',
+    
+    // How Works Section
+    'welcome.how.title': 'So funktioniert es',
+    'welcome.how.step1.number': '1',
+    'welcome.how.step1.title': 'Nach Branche & Ort Suchen',
+    'welcome.how.step1.desc': 'Geben Sie den Unternehmenstyp (z.B. "Schreiner") und die Stadt oder den Radius ein. Zugriff auf alle 26 Kantone.',
+    'welcome.how.step2.number': '2',
+    'welcome.how.step2.title': 'KI Qualifiziert Daten',
+    'welcome.how.step2.desc': 'Unsere Gemini-KI verifiziert Kontakte, lädt Websites herunter, extrahiert E-Mails und Unternehmensinformationen in Echtzeit.',
+    'welcome.how.step3.number': '3',
+    'welcome.how.step3.title': 'Exportieren & Kontaktieren',
+    'welcome.how.step3.desc': 'In CSV/JSON herunterladen, personalisierte E-Mails generieren oder direkt mit CRM/Marketing-Automation-Tools integrieren.',
+    
+    // CTA Section
+    'welcome.cta.title': 'Kostenlos Heute Beginnen',
+    'welcome.cta.subtext': 'Keine Kreditkarte erforderlich. 5 kostenlose Suchen beim ersten Login.',
     
     // Main App
     'app.search.keyword': 'Suchbegriff (z.B. Schreiner, Arzt)',
@@ -119,6 +183,38 @@ export const translations: Record<Language, Record<string, string>> = {
     'welcome.login.button': 'Connexion',
     'welcome.version': 'Version 1.5 • Suite de Génération de Prospects pour la Suisse',
     
+    // What Section
+    'welcome.what.title': 'Qu\'est-ce que Swiss Lead Pro?',
+    'welcome.what.description': 'Une plateforme de génération intelligente de prospects B2B qui combine des technologies avancées pour identifier, qualifier et contacter des entreprises suisses à fort potentiel.',
+    'welcome.what.point1': '🔍 Recherche intelligente dans Google Maps et les données web',
+    'welcome.what.point2': '✓ Qualification automatique avec IA (Gemini)',
+    'welcome.what.point3': '✉️ Génération d\'e-mails personnalisés',
+    
+    // Benefits Section
+    'welcome.benefits.title': 'Avantages Principaux',
+    'welcome.benefit1.title': '⚡ Temps Gagné',
+    'welcome.benefit1.desc': 'De semaines à minutes. Extrayez des centaines de prospects qualifiés en une seule recherche, au lieu de chercher manuellement.',
+    'welcome.benefit2.title': '🎯 Précision Élevée',
+    'welcome.benefit2.desc': 'Données vérifiées en temps réel avec Google Maps et IA, pour garantir des contacts réels et actualisés.',
+    'welcome.benefit3.title': '📈 ROI Garanti',
+    'welcome.benefit3.desc': 'E-mails personnalisés avec des taux d\'ouverture 40% plus élevés. Conversions mesurables dès le jour un.',
+    
+    // How Works Section
+    'welcome.how.title': 'Comment ça Marche',
+    'welcome.how.step1.number': '1',
+    'welcome.how.step1.title': 'Recherchez par Secteur & Lieu',
+    'welcome.how.step1.desc': 'Entrez le type d\'entreprise (ex: "Menuisier") et la ville ou le rayon. Accès aux 26 cantons.',
+    'welcome.how.step2.number': '2',
+    'welcome.how.step2.title': 'L\'IA Qualifie les Données',
+    'welcome.how.step2.desc': 'Notre IA Gemini vérifie les contacts, télécharge les sites web, extrait les e-mails et les informations d\'entreprise en temps réel.',
+    'welcome.how.step3.number': '3',
+    'welcome.how.step3.title': 'Exportez & Contactez',
+    'welcome.how.step3.desc': 'Téléchargez en CSV/JSON, générez des e-mails personnalisés ou intégrez directement avec CRM/outils d\'automatisation marketing.',
+    
+    // CTA Section
+    'welcome.cta.title': 'Commencez Gratuitement Aujourd\'hui',
+    'welcome.cta.subtext': 'Aucune carte de crédit requise. 5 recherches gratuites à la première connexion.',
+    
     // Main App
     'app.search.keyword': 'Mot-clé (ex. Charpentier, Médecin)',
     'app.search.location': 'Ville/Lieu',
@@ -168,6 +264,38 @@ export const translations: Record<Language, Record<string, string>> = {
     'welcome.login.email': 'Enter your email',
     'welcome.login.button': 'Login',
     'welcome.version': 'Version 1.5 • Lead Generation Suite for Switzerland',
+    
+    // What Section
+    'welcome.what.title': 'What is Swiss Lead Pro?',
+    'welcome.what.description': 'An intelligent B2B lead generation platform that combines advanced technologies to find, qualify, and contact high-potential Swiss companies.',
+    'welcome.what.point1': '🔍 Intelligent search in Google Maps and web data',
+    'welcome.what.point2': '✓ Automatic qualification with AI (Gemini)',
+    'welcome.what.point3': '✉️ Generation of personalized emails',
+    
+    // Benefits Section
+    'welcome.benefits.title': 'Key Benefits',
+    'welcome.benefit1.title': '⚡ Time Saved',
+    'welcome.benefit1.desc': 'From weeks to minutes. Extract hundreds of qualified leads in a single search instead of manual searching.',
+    'welcome.benefit2.title': '🎯 High Accuracy',
+    'welcome.benefit2.desc': 'Data verified in real-time with Google Maps and AI to ensure real and current contacts.',
+    'welcome.benefit3.title': '📈 Guaranteed ROI',
+    'welcome.benefit3.desc': 'Personalized emails with 40% higher open rates. Measurable conversions from day one.',
+    
+    // How Works Section
+    'welcome.how.title': 'How It Works',
+    'welcome.how.step1.number': '1',
+    'welcome.how.step1.title': 'Search by Industry & Location',
+    'welcome.how.step1.desc': 'Enter the company type (e.g., "Carpenter") and city or radius. Access to all 26 cantons.',
+    'welcome.how.step2.number': '2',
+    'welcome.how.step2.title': 'AI Qualifies Data',
+    'welcome.how.step2.desc': 'Our Gemini AI verifies contacts, downloads websites, extracts emails and company information in real-time.',
+    'welcome.how.step3.number': '3',
+    'welcome.how.step3.title': 'Export & Contact',
+    'welcome.how.step3.desc': 'Download as CSV/JSON, generate personalized emails or integrate directly with CRM/marketing automation tools.',
+    
+    // CTA Section
+    'welcome.cta.title': 'Start Free Today',
+    'welcome.cta.subtext': 'No credit card required. 5 free searches on first login.',
     
     // Main App
     'app.search.keyword': 'Keyword (e.g. Carpenter, Doctor)',

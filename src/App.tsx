@@ -364,9 +364,9 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
       
       {/* Welcome Screen */}
       {showWelcome && (
-        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-red-900 z-50 flex items-center justify-center p-4">
-          <div className="max-w-2xl w-full mx-auto">
-            <div className="text-center">
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-red-900 z-50 overflow-y-auto">
+          <div className="min-h-screen flex items-center justify-center p-4 py-12">
+            <div className="max-w-4xl w-full mx-auto">
               {/* Language Selector */}
               <div className="flex justify-center gap-2 mb-8">
                 {(['IT', 'DE', 'FR', 'ENG'] as Language[]).map(lang => (
@@ -385,41 +385,85 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
               </div>
 
               {/* Logo */}
-              <div className="mb-8">
+              <div className="text-center mb-12">
                 <h1 className="text-5xl font-bold text-white mb-2">
                   {t('welcome.title', welcomeLanguage)} <span className="text-red-500">{t('welcome.title.highlight', welcomeLanguage)}</span> {t('welcome.title.last', welcomeLanguage)}
                 </h1>
                 <p className="text-red-300 font-semibold">{t('welcome.subtitle', welcomeLanguage)}</p>
               </div>
               
-              {/* Description */}
-              <div className="text-white space-y-6 mb-12">
-                <p className="text-xl font-light">
-                  {t('welcome.description', welcomeLanguage)}
+              {/* WHAT IS SWISS LEAD PRO */}
+              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-8 mb-8">
+                <h2 className="text-2xl font-bold text-white mb-4 text-center">{t('welcome.what.title', welcomeLanguage)}</h2>
+                <p className="text-white/90 text-lg mb-6 text-center">
+                  {t('welcome.what.description', welcomeLanguage)}
                 </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                  <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
-                    <div className="text-3xl mb-2">🎯</div>
-                    <h3 className="font-semibold mb-1">{t('welcome.feature1.title', welcomeLanguage)}</h3>
-                    <p className="text-sm text-slate-300">{t('welcome.feature1.desc', welcomeLanguage)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-white/80 text-sm">{t('welcome.what.point1', welcomeLanguage)}</div>
+                  <div className="text-white/80 text-sm">{t('welcome.what.point2', welcomeLanguage)}</div>
+                  <div className="text-white/80 text-sm">{t('welcome.what.point3', welcomeLanguage)}</div>
+                </div>
+              </div>
+
+              {/* BENEFITS SECTION */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-white mb-6 text-center">{t('welcome.benefits.title', welcomeLanguage)}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-400/20 backdrop-blur p-6 rounded-lg">
+                    <h3 className="font-semibold text-white mb-2 text-lg">{t('welcome.benefit1.title', welcomeLanguage)}</h3>
+                    <p className="text-white/70 text-sm">{t('welcome.benefit1.desc', welcomeLanguage)}</p>
                   </div>
-                  <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
-                    <div className="text-3xl mb-2">🤖</div>
-                    <h3 className="font-semibold mb-1">{t('welcome.feature2.title', welcomeLanguage)}</h3>
-                    <p className="text-sm text-slate-300">{t('welcome.feature2.desc', welcomeLanguage)}</p>
+                  <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 border border-purple-400/20 backdrop-blur p-6 rounded-lg">
+                    <h3 className="font-semibold text-white mb-2 text-lg">{t('welcome.benefit2.title', welcomeLanguage)}</h3>
+                    <p className="text-white/70 text-sm">{t('welcome.benefit2.desc', welcomeLanguage)}</p>
                   </div>
-                  <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
-                    <div className="text-3xl mb-2">📧</div>
-                    <h3 className="font-semibold mb-1">{t('welcome.feature3.title', welcomeLanguage)}</h3>
-                    <p className="text-sm text-slate-300">{t('welcome.feature3.desc', welcomeLanguage)}</p>
+                  <div className="bg-gradient-to-br from-green-500/20 to-green-500/5 border border-green-400/20 backdrop-blur p-6 rounded-lg">
+                    <h3 className="font-semibold text-white mb-2 text-lg">{t('welcome.benefit3.title', welcomeLanguage)}</h3>
+                    <p className="text-white/70 text-sm">{t('welcome.benefit3.desc', welcomeLanguage)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Login Form */}
-              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-8 max-w-md mx-auto">
-                <h2 className="text-white text-lg font-semibold mb-6">{t('welcome.login.title', welcomeLanguage)}</h2>
+              {/* HOW IT WORKS */}
+              <div className="mb-12">
+                <h2 className="text-2xl font-bold text-white mb-8 text-center">{t('welcome.how.title', welcomeLanguage)}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="relative">
+                    <div className="bg-white/10 border border-white/20 backdrop-blur rounded-lg p-6 text-center">
+                      <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4 mx-auto">
+                        {t('welcome.how.step1.number', welcomeLanguage)}
+                      </div>
+                      <h3 className="text-white font-semibold mb-2">{t('welcome.how.step1.title', welcomeLanguage)}</h3>
+                      <p className="text-white/70 text-sm">{t('welcome.how.step1.desc', welcomeLanguage)}</p>
+                    </div>
+                    <div className="hidden md:block absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-6 bg-red-600 rounded-full border-4 border-slate-800"></div>
+                  </div>
+                  <div className="relative">
+                    <div className="bg-white/10 border border-white/20 backdrop-blur rounded-lg p-6 text-center">
+                      <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4 mx-auto">
+                        {t('welcome.how.step2.number', welcomeLanguage)}
+                      </div>
+                      <h3 className="text-white font-semibold mb-2">{t('welcome.how.step2.title', welcomeLanguage)}</h3>
+                      <p className="text-white/70 text-sm">{t('welcome.how.step2.desc', welcomeLanguage)}</p>
+                    </div>
+                    <div className="hidden md:block absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-6 bg-red-600 rounded-full border-4 border-slate-800"></div>
+                  </div>
+                  <div className="relative">
+                    <div className="bg-white/10 border border-white/20 backdrop-blur rounded-lg p-6 text-center">
+                      <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4 mx-auto">
+                        {t('welcome.how.step3.number', welcomeLanguage)}
+                      </div>
+                      <h3 className="text-white font-semibold mb-2">{t('welcome.how.step3.title', welcomeLanguage)}</h3>
+                      <p className="text-white/70 text-sm">{t('welcome.how.step3.desc', welcomeLanguage)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LOGIN Form */}
+              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-8 max-w-md mx-auto mb-8">
+                <h2 className="text-white text-lg font-semibold mb-2 text-center">{t('welcome.cta.title', welcomeLanguage)}</h2>
+                <p className="text-white/60 text-xs text-center mb-6">{t('welcome.cta.subtext', welcomeLanguage)}</p>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -445,7 +489,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                 </form>
               </div>
               
-              <p className="text-slate-400 text-sm mt-8">
+              <p className="text-slate-400 text-sm text-center mb-4">
                 {t('welcome.version', welcomeLanguage)}
               </p>
             </div>
