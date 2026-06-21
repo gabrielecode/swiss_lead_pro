@@ -38,13 +38,25 @@ import ReactMarkdown from "react-markdown";
 
 import { CANTONES_DATA } from "./data";
 import { Canton } from "./types";
+import { translations, Language, t } from "./translations";
 
 export default function App() {
   // Locked to Lead Generator Pro for premium lightweight experience
   const activeTab = "lead-generator";
   
+  // Multi-language & Authentication
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('slpLanguage') as Language;
+    return saved || 'IT';
+  });
+  const [userEmail, setUserEmail] = useState<string>(() => {
+    return localStorage.getItem('slpUserEmail') || '';
+  });
+  const [emailInput, setEmailInput] = useState('');
+  const [welcomeLanguage, setWelcomeLanguage] = useState<Language>(language);
+  
   // Welcome screen toggle
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(!userEmail);
   
   // Selected Canton filter (null means all of Switzerland)
   const [selectedCantonCode, setSelectedCantonCode] = useState<string | null>(null);
@@ -116,6 +128,24 @@ export default function App() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handle login
+  const handleLogin = (email: string, lang: Language) => {
+    if (!email.trim()) return;
+    localStorage.setItem('slpUserEmail', email);
+    localStorage.setItem('slpLanguage', lang);
+    setUserEmail(email);
+    setLanguage(lang);
+    setShowWelcome(false);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('slpUserEmail');
+    setUserEmail('');
+    setShowWelcome(true);
+    setEmailInput('');
+  };
 
   // Filtered lists based on Canton and Search Query
   const selectedCanton = useMemo(() => {
@@ -334,52 +364,91 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
       
       {/* Welcome Screen */}
       {showWelcome && (
-        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-red-900 z-50 flex items-center justify-center">
-          <div className="max-w-2xl mx-auto px-6 py-12 text-center">
-            {/* Logo */}
-            <div className="mb-8">
-              <h1 className="text-5xl font-bold text-white mb-2">
-                SWISS <span className="text-red-500">LEAD</span> PRO
-              </h1>
-              <p className="text-red-300 font-semibold">B2B Lead Generation & Qualification</p>
-            </div>
-            
-            {/* Description */}
-            <div className="text-white space-y-6 mb-12">
-              <p className="text-xl font-light">
-                Estrai e qualifica contatti B2B di alto valore nei 26 Cantoni Svizzeri
-              </p>
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-red-900 z-50 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full mx-auto">
+            <div className="text-center">
+              {/* Language Selector */}
+              <div className="flex justify-center gap-2 mb-8">
+                {(['IT', 'DE', 'FR', 'ENG'] as Language[]).map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => setWelcomeLanguage(lang)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                      welcomeLanguage === lang
+                        ? 'bg-red-600 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+
+              {/* Logo */}
+              <div className="mb-8">
+                <h1 className="text-5xl font-bold text-white mb-2">
+                  {t('welcome.title', welcomeLanguage)} <span className="text-red-500">{t('welcome.title.highlight', welcomeLanguage)}</span> {t('welcome.title.last', welcomeLanguage)}
+                </h1>
+                <p className="text-red-300 font-semibold">{t('welcome.subtitle', welcomeLanguage)}</p>
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
-                  <div className="text-3xl mb-2">🎯</div>
-                  <h3 className="font-semibold mb-1">Ricerca Precisa</h3>
-                  <p className="text-sm text-slate-300">Trova aziende per settore, città e raggio d'azione</p>
-                </div>
-                <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
-                  <div className="text-3xl mb-2">🤖</div>
-                  <h3 className="font-semibold mb-1">AI Grounding</h3>
-                  <p className="text-sm text-slate-300">Verificato con Gemini AI e Google Search</p>
-                </div>
-                <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
-                  <div className="text-3xl mb-2">📧</div>
-                  <h3 className="font-semibold mb-1">Cold Outreach</h3>
-                  <p className="text-sm text-slate-300">Email personalizzate generate automaticamente</p>
+              {/* Description */}
+              <div className="text-white space-y-6 mb-12">
+                <p className="text-xl font-light">
+                  {t('welcome.description', welcomeLanguage)}
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                  <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
+                    <div className="text-3xl mb-2">🎯</div>
+                    <h3 className="font-semibold mb-1">{t('welcome.feature1.title', welcomeLanguage)}</h3>
+                    <p className="text-sm text-slate-300">{t('welcome.feature1.desc', welcomeLanguage)}</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
+                    <div className="text-3xl mb-2">🤖</div>
+                    <h3 className="font-semibold mb-1">{t('welcome.feature2.title', welcomeLanguage)}</h3>
+                    <p className="text-sm text-slate-300">{t('welcome.feature2.desc', welcomeLanguage)}</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
+                    <div className="text-3xl mb-2">📧</div>
+                    <h3 className="font-semibold mb-1">{t('welcome.feature3.title', welcomeLanguage)}</h3>
+                    <p className="text-sm text-slate-300">{t('welcome.feature3.desc', welcomeLanguage)}</p>
+                  </div>
                 </div>
               </div>
+
+              {/* Login Form */}
+              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-8 max-w-md mx-auto">
+                <h2 className="text-white text-lg font-semibold mb-6">{t('welcome.login.title', welcomeLanguage)}</h2>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleLogin(emailInput, welcomeLanguage);
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <input
+                      type="email"
+                      placeholder={t('welcome.login.email', welcomeLanguage)}
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-red-500 transition-colors"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-all duration-300 transform hover:scale-105"
+                  >
+                    {t('welcome.login.button', welcomeLanguage)}
+                  </button>
+                </form>
+              </div>
+              
+              <p className="text-slate-400 text-sm mt-8">
+                {t('welcome.version', welcomeLanguage)}
+              </p>
             </div>
-            
-            {/* CTA Button */}
-            <button
-              onClick={() => setShowWelcome(false)}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-12 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
-            >
-              Accedi all'Applicazione
-            </button>
-            
-            <p className="text-slate-400 text-sm mt-8">
-              Versione 1.4 • Lead Generation Suite per la Svizzera
-            </p>
           </div>
         </div>
       )}
@@ -423,14 +492,30 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
             <div className="hidden md:flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-xs text-slate-400 font-medium">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-mono">Ora di Berna:</span>
-                <span className="font-semibold text-slate-700 font-mono tracking-wider">{swissTime || "00:00:00"}</span>
+                <span className="font-mono">{t('app.language', language)}:</span>
               </div>
+              <select
+                value={language}
+                onChange={(e) => {
+                  const newLang = e.target.value as Language;
+                  setLanguage(newLang);
+                  localStorage.setItem('slpLanguage', newLang);
+                }}
+                className="px-2 py-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-700 focus:outline-none focus:border-red-500"
+              >
+                <option value="IT">🇮🇹 Italiano</option>
+                <option value="DE">🇩🇪 Deutsch</option>
+                <option value="FR">🇫🇷 Français</option>
+                <option value="ENG">🇬🇧 English</option>
+              </select>
               <div className="h-4 w-px bg-slate-200"></div>
-              <div className="bg-red-50/55 text-red-650 px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
-                <Globe className="w-3 h-3" />
-                Live Google Grounding
-              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-semibold transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                {t('app.logout', language)}
+              </button>
             </div>
 
           </div>
@@ -497,12 +582,12 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <div className="md:col-span-3 flex items-center bg-slate-950/70 rounded-xl px-3 py-1.5 border border-slate-800">
                         <Briefcase className="w-4 h-4 text-emerald-550 shrink-0 mr-2.5 align-middle" />
                         <div className="flex-1 min-w-0">
-                          <label className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block mb-0.5">Settore / Keyword</label>
+                          <label className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block mb-0.5">{t('app.search.keyword', language)}</label>
                           <input
                             type="text"
                             value={leadKeyword}
                             onChange={(e) => setLeadKeyword(e.target.value)}
-                            placeholder="es. Falegname, Idraulico, Fiduciaria"
+                            placeholder={t('app.search.keyword', language)}
                             className="bg-transparent text-white text-xs outline-hidden w-full placeholder-slate-600 font-medium"
                             required
                           />
@@ -513,12 +598,12 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <div className="md:col-span-3 flex items-center bg-slate-950/70 rounded-xl px-3 py-1.5 border border-slate-800">
                         <MapPin className="w-4 h-4 text-red-500 shrink-0 mr-2.5 align-middle" />
                         <div className="flex-1 min-w-0">
-                          <label className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block mb-0.5">Città / NPA Locale</label>
+                          <label className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block mb-0.5">{t('app.search.location', language)}</label>
                           <input
                             type="text"
                             value={leadLocation}
                             onChange={(e) => setLeadLocation(e.target.value)}
-                            placeholder="es. Lugano, Zurigo, Chiasso"
+                            placeholder={t('app.search.location', language)}
                             className="bg-transparent text-white text-xs outline-hidden w-full placeholder-slate-600 font-medium"
                           />
                         </div>
@@ -547,7 +632,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       {/* Scope Radius Slider */}
                       <div className="md:col-span-3 flex flex-col justify-center bg-slate-950/70 rounded-xl px-4 py-1.5 border border-slate-800">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block">Raggio d'azione</span>
+                          <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block">{t('app.search.radius', language)}</span>
                           <span className="text-[11px] font-mono font-extrabold text-red-500">
                             {searchRadius === 0 ? "Area esatta" : `+${searchRadius} km`}
                           </span>
@@ -574,12 +659,12 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                           {isLoadingLeads ? (
                             <>
                               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>Estrazione in corso...</span>
+                              <span>{t('app.search.loading', language)}</span>
                             </>
                           ) : (
                             <>
                               <Sparkles className="w-4 h-4 text-red-200 animate-pulse" />
-                              <span>Avvia Deep Search Crawler</span>
+                              <span>{t('app.search.button', language)}</span>
                             </>
                           )}
                         </button>
@@ -723,14 +808,14 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                           type="text"
                           value={leadSearchText}
                           onChange={(e) => setLeadSearchText(e.target.value)}
-                          placeholder="Filtra per nome azienda, settore, strada..."
+                          placeholder={t('app.filter.search', language)}
                           className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 outline-hidden w-full focus:ring-1 focus:ring-slate-300 focus:bg-white transition-all"
                         />
                       </div>
 
                       {/* Score slider */}
                       <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
-                        <span className="text-slate-500 text-[11px]">Score minimo: <strong>{minScoreFilter}</strong></span>
+                        <span className="text-slate-500 text-[11px]">{t('app.filter.score', language)}: <strong>{minScoreFilter}</strong></span>
                         <input
                           type="range"
                           min="0"
@@ -747,18 +832,18 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <button
                         onClick={downloadLeadsCSV}
                         className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        title="Esporta Leads in Excel (CSV)"
+                        title={t('app.export.csv', language)}
                       >
                         <Download className="w-3.5 h-3.5 text-slate-500" />
-                        Esporta CSV
+                        {t('app.export.csv', language)}
                       </button>
                       <button
                         onClick={downloadLeadsJSON}
                         className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        title="Esporta Leads in formato JSON"
+                        title={t('app.export.json', language)}
                       >
                         <FileText className="w-3.5 h-3.5 text-slate-500" />
-                        Esporta JSON
+                        {t('app.export.json', language)}
                       </button>
                     </div>
                   </div>
@@ -772,7 +857,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                         onChange={(e) => setOnlyWithEmail(e.target.checked)}
                         className="rounded border-slate-300 accent-red-650 w-3.5 h-3.5"
                       />
-                      Solo con Email visibile
+                      {t('app.filter.withEmail', language)}
                     </label>
                     <label className="flex items-center gap-2 select-none text-slate-700 font-medium cursor-pointer">
                       <input
@@ -781,7 +866,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                         onChange={(e) => setOnlyWithWebsite(e.target.checked)}
                         className="rounded border-slate-300 accent-red-650 w-3.5 h-3.5"
                       />
-                      Solo con Sito Web funzionante
+                      {t('app.filter.withWebsite', language)}
                     </label>
                   </div>
                 </div>
@@ -815,18 +900,18 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
                           <tr className="bg-slate-100 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200 text-[10px]">
-                            <th className="p-4">Azienda / Settore</th>
-                            <th className="p-4">Geoloc. / Indirizzo</th>
-                            <th className="p-4">Contatti</th>
-                            <th className="p-4 text-center">Score</th>
-                            <th className="p-4 text-right">Azione</th>
+                            <th className="p-4">{t('app.table.company', language)} / {t('app.table.sector', language)}</th>
+                            <th className="p-4">Geoloc. / {t('app.table.address', language)}</th>
+                            <th className="p-4">{t('app.table.email', language)}</th>
+                            <th className="p-4 text-center">{t('app.table.score', language)}</th>
+                            <th className="p-4 text-right">{t('app.table.actions', language)}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-150">
                           {filteredLeads.length === 0 ? (
                             <tr>
                               <td colSpan={5} className="p-8 text-center text-slate-400 italic">
-                                Nessun lead svizzero corrisponde ai criteri del filtro impostato. Avvia una nuova ricerca con altri termini!
+                                {t('app.table.empty', language)}
                               </td>
                             </tr>
                           ) : (
