@@ -43,6 +43,9 @@ export default function App() {
   // Locked to Lead Generator Pro for premium lightweight experience
   const activeTab = "lead-generator";
   
+  // Welcome screen toggle
+  const [showWelcome, setShowWelcome] = useState(true);
+  
   // Selected Canton filter (null means all of Switzerland)
   const [selectedCantonCode, setSelectedCantonCode] = useState<string | null>(null);
 
@@ -329,7 +332,61 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased selection:bg-red-50 selection:text-red-900">
       
-      {/* Switzerland Decorative Top Bar */}
+      {/* Welcome Screen */}
+      {showWelcome && (
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-red-900 z-50 flex items-center justify-center">
+          <div className="max-w-2xl mx-auto px-6 py-12 text-center">
+            {/* Logo */}
+            <div className="mb-8">
+              <h1 className="text-5xl font-bold text-white mb-2">
+                SWISS <span className="text-red-500">LEAD</span> PRO
+              </h1>
+              <p className="text-red-300 font-semibold">B2B Lead Generation & Qualification</p>
+            </div>
+            
+            {/* Description */}
+            <div className="text-white space-y-6 mb-12">
+              <p className="text-xl font-light">
+                Estrai e qualifica contatti B2B di alto valore nei 26 Cantoni Svizzeri
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
+                  <div className="text-3xl mb-2">🎯</div>
+                  <h3 className="font-semibold mb-1">Ricerca Precisa</h3>
+                  <p className="text-sm text-slate-300">Trova aziende per settore, città e raggio d'azione</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
+                  <div className="text-3xl mb-2">🤖</div>
+                  <h3 className="font-semibold mb-1">AI Grounding</h3>
+                  <p className="text-sm text-slate-300">Verificato con Gemini AI e Google Search</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur p-4 rounded-lg border border-white/20">
+                  <div className="text-3xl mb-2">📧</div>
+                  <h3 className="font-semibold mb-1">Cold Outreach</h3>
+                  <p className="text-sm text-slate-300">Email personalizzate generate automaticamente</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* CTA Button */}
+            <button
+              onClick={() => setShowWelcome(false)}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-12 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Accedi all'Applicazione
+            </button>
+            
+            <p className="text-slate-400 text-sm mt-8">
+              Versione 1.4 • Lead Generation Suite per la Svizzera
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Main App - Hidden when Welcome is shown */}
+      {!showWelcome && (
+      <>
       <div className="bg-[#da291c] h-1.5 w-full flex">
         <div className="bg-white h-full w-1/3"></div>
         <div className="bg-[#da291c] h-full w-1/3 flex items-center justify-center">
@@ -1087,6 +1144,8 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
           </div>
         </div>
       </footer>
+      </>
+      )}
     </div>
   );
 }
