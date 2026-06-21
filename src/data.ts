@@ -1,0 +1,30 @@
+import { Canton } from "./types";
+
+export const CANTONES_DATA: Canton[] = [
+  { code: "ZH", name: "Zurigo", originalName: "Zürich", capital: "Zurigo", languages: ["Tedesco"], population: 1553000, area: 1729, joinedConfederacy: 1351, color: "bg-blue-600", accentColor: "#2563EB" },
+  { code: "BE", name: "Berna", originalName: "Bern", capital: "Berna", languages: ["Tedesco", "Francese"], population: 1043000, area: 5959, joinedConfederacy: 1353, color: "bg-amber-600", accentColor: "#D97706" },
+  { code: "VD", name: "Vaud", originalName: "Vaud", capital: "Losanna", languages: ["Francese"], population: 815000, area: 3212, joinedConfederacy: 1803, color: "bg-emerald-600", accentColor: "#059669" },
+  { code: "AG", name: "Argovia", originalName: "Aargau", capital: "Aarau", languages: ["Tedesco"], population: 694000, area: 1404, joinedConfederacy: 1803, color: "bg-stone-600", accentColor: "#57534E" },
+  { code: "SG", name: "San Gallo", originalName: "St. Gallen", capital: "San Gallo", languages: ["Tedesco"], population: 514000, area: 2026, joinedConfederacy: 1803, color: "bg-green-700", accentColor: "#15803D" },
+  { code: "GE", name: "Ginevra", originalName: "Genève", capital: "Ginevra", languages: ["Francese"], population: 506000, area: 282, joinedConfederacy: 1815, color: "bg-red-600", accentColor: "#DC2626" },
+  { code: "LU", name: "Lucerna", originalName: "Luzern", capital: "Lucerna", languages: ["Tedesco"], population: 416000, area: 1493, joinedConfederacy: 1332, color: "bg-sky-500", accentColor: "#0EA5E9" },
+  { code: "TI", name: "Ticino", originalName: "Ticino", capital: "Bellinzona", languages: ["Italiano"], population: 351000, area: 2812, joinedConfederacy: 1803, color: "bg-red-700", accentColor: "#B91C1C" },
+  { code: "VS", name: "Vallese", originalName: "Valais", capital: "Sion", languages: ["Francese", "Tedesco"], population: 348000, area: 5224, joinedConfederacy: 1815, color: "bg-indigo-600", accentColor: "#4F46E5" },
+  { code: "FR", name: "Friburgo", originalName: "Fribourg", capital: "Friburgo", languages: ["Francese", "Tedesco"], population: 325000, area: 1671, joinedConfederacy: 1481, color: "bg-zinc-800", accentColor: "#27272A" },
+  { code: "SO", name: "Soletta", originalName: "Solothurn", capital: "Soletta", languages: ["Tedesco"], population: 277000, area: 791, joinedConfederacy: 1481, color: "bg-orange-500", accentColor: "#F97316" },
+  { code: "BL", name: "Basilea Campagna", originalName: "Basel-Landschaft", capital: "Liestal", languages: ["Tedesco"], population: 290000, area: 518, joinedConfederacy: 1501, color: "bg-amber-700", accentColor: "#B45309" },
+  { code: "BS", name: "Basilea Città", originalName: "Basel-Stadt", capital: "Basilea", languages: ["Tedesco"], population: 196000, area: 37, joinedConfederacy: 1501, color: "bg-slate-900", accentColor: "#0F172A" },
+  { code: "TG", name: "Turgovia", originalName: "Thurgau", capital: "Frauenfeld", languages: ["Tedesco"], population: 282000, area: 991, joinedConfederacy: 1803, color: "bg-lime-600", accentColor: "#65A30D" },
+  { code: "GR", name: "Grigioni", originalName: "Graubünden / Grischun", capital: "Coira", languages: ["Tedesco", "Romancio", "Italiano"], population: 200000, area: 7105, joinedConfederacy: 1803, color: "bg-teal-700", accentColor: "#0F766E" },
+  { code: "NE", name: "Neuchâtel", originalName: "Neuchâtel", capital: "Neuchâtel", languages: ["Francese"], population: 176000, area: 803, joinedConfederacy: 1815, color: "bg-emerald-700", accentColor: "#047857" },
+  { code: "SZ", name: "Svitto", originalName: "Schwyz", capital: "Svitto", languages: ["Tedesco"], population: 162000, area: 908, joinedConfederacy: 1291, color: "bg-red-800", accentColor: "#991B1B" },
+  { code: "ZG", name: "Zugo", originalName: "Zug", capital: "Zugo", languages: ["Tedesco"], population: 129000, area: 239, joinedConfederacy: 1352, color: "bg-blue-800", accentColor: "#1E40AF" },
+  { code: "SH", name: "Sciaffusa", originalName: "Schaffhausen", capital: "Sciaffusa", languages: ["Tedesco"], population: 83000, area: 298, joinedConfederacy: 1501, color: "bg-yellow-600", accentColor: "#CA8A04" },
+  { code: "AR", name: "Appenzello Esterno", originalName: "Appenzell Ausserrhoden", capital: "Herisau", languages: ["Tedesco"], population: 55000, area: 243, joinedConfederacy: 1513, color: "bg-neutral-600", accentColor: "#525252" },
+  { code: "AI", name: "Appenzello Interno", originalName: "Appenzell Innerrhoden", capital: "Appenzell", languages: ["Tedesco"], population: 16000, area: 173, joinedConfederacy: 1513, color: "bg-stone-800", accentColor: "#292524" },
+  { code: "OW", name: "Obvaldo", originalName: "Obwalden", capital: "Sarnen", languages: ["Tedesco"], population: 38000, area: 491, joinedConfederacy: 1291, color: "bg-cyan-700", accentColor: "#0E7490" },
+  { code: "NW", name: "Nidvaldo", originalName: "Nidwalden", capital: "Stans", languages: ["Tedesco"], population: 43000, area: 276, joinedConfederacy: 1291, color: "bg-indigo-700", accentColor: "#4338CA" },
+  { code: "GL", name: "Glarona", originalName: "Glarus", capital: "Glarona", languages: ["Tedesco"], population: 41000, area: 685, joinedConfederacy: 1352, color: "bg-rose-700", accentColor: "#BE123C" },
+  { code: "UR", name: "Uri", originalName: "Uri", capital: "Altdorf", languages: ["Tedesco"], population: 37000, area: 1077, joinedConfederacy: 1291, color: "bg-yellow-700", accentColor: "#A16207" },
+  { code: "JU", name: "Giura", originalName: "Jura", capital: "Delémont", languages: ["Francese"], population: 73000, area: 838, joinedConfederacy: 1979, color: "bg-red-500", accentColor: "#EF4444" }
+];
