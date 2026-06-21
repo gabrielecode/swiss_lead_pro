@@ -255,12 +255,6 @@ export default function App() {
           ...l,
           id: String(Date.now()) + "-" + idx
         }));
-        console.log("API Response received:", {
-          success: data.success,
-          leadsCount: mappedLeads.length,
-          selectedCantonCode,
-          leads: mappedLeads.slice(0, 2)
-        });
         setLeads(mappedLeads);
         setLeadsSources(data.sources || []);
       } else {
@@ -332,7 +326,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
   };
 
   const filteredLeads = useMemo(() => {
-    const filtered = leads.filter(lead => {
+    return leads.filter(lead => {
       // Canton filter matching if active
       let matchesCanton = true;
       if (selectedCantonCode) {
@@ -356,20 +350,8 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
       const matchesEmail = !onlyWithEmail || (lead.email && lead.email !== "Non disponibile" && lead.email !== "Contatto via Form");
       const matchesWebsite = !onlyWithWebsite || (lead.website && lead.website !== "Non disponibile");
 
-      const passes = matchesCanton && matchesSearch && matchesScore && matchesEmail && matchesWebsite;
-      
-      if (leads.length > 0 && leads.length < 10) {
-        console.log("Filter check for", lead.company, { matchesCanton, matchesSearch, matchesScore, matchesEmail, matchesWebsite, passes });
-      }
-      
-      return passes;
+      return matchesCanton && matchesSearch && matchesScore && matchesEmail && matchesWebsite;
     });
-    
-    if (leads.length > 0 && leads.length !== filtered.length) {
-      console.log("Filtering result: ", leads.length, " → ", filtered.length);
-    }
-    
-    return filtered;
   }, [leads, selectedCantonCode, selectedCanton, leadSearchText, minScoreFilter, onlyWithEmail, onlyWithWebsite]);
 
   const downloadLeadsCSV = () => {
