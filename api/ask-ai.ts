@@ -54,8 +54,12 @@ Rispondi in modo cordiale, preciso e in lingua ${language || "italiana"}.`;
 
     const response = await activeGenAI.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: prompt,
-      systemInstruction,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
       generationConfig: {
         maxOutputTokens: 2048,
         temperature: 0.7,
@@ -65,10 +69,12 @@ Rispondi in modo cordiale, preciso e in lingua ${language || "italiana"}.`;
           googleSearch: {},
         },
       ],
-    });
+    } as any);
+
+    const resultText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     res.json({
-      result: response.response?.text,
+      result: resultText,
       candidates: response.candidates,
     });
   } catch (error: any) {

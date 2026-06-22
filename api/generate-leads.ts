@@ -31,16 +31,24 @@ const generateWithRetry = async (
 
   for (const model of models) {
     try {
-      const config: any = {
-        systemInstruction,
-        tools: [{ googleSearch: {} }],
-      };
-
       const response = await activeGenAI.models.generateContent({
         model,
-        contents,
-        config,
-      });
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: contents }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
+        tools: [
+          {
+            googleSearch: {},
+          },
+        ],
+      } as any);
 
       return response;
     } catch (error: any) {
