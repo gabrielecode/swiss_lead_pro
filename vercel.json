@@ -1,6 +1,18 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "serverlessFunctionRegion": "auto",
+  "env": {
+    "GEMINI_API_KEY": "@GEMINI_API_KEY",
+    "APP_URL": "@APP_URL"
+  },
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "runtime": "nodejs20.x"
+    }
+  }
 }
 

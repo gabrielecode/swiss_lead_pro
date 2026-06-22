@@ -52,24 +52,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const systemInstruction = `Sei un assistente esperto per la ricerca in Svizzera.
 Rispondi in modo cordiale, preciso e in lingua ${language || "italiana"}.`;
 
-    const response = await activeGenAI.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-      },
-      tools: [
-        {
-          googleSearch: {},
-        },
-      ],
-    } as any);
+    // Try latest Gemini models in order
+    const models = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"];
+    let lastError: any;
+    let response;
+
+    for (const model of models) {
+      try {
+        console.log(`[Ask-AI] Attempting with model: ${model}`);
+        response = await activeGenAI.models.generateContent({
+          model,
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }],
+            },
+          ],
+          systemInstruction,
+          generationConfig: {
+            maxOutputTokens: 2048,
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+          },
+          tools: [
+            {
+              googleSearch: {},
+            },
+          ],
+        } as any);
+
+        console.log(`[Ask-AI] ✅ Success with model ${model}`);
+        break;
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[Ask-AI] Model ${model} failed:`, error?.message);
+        // Try next model
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error("Errore durante la richiesta a Gemini");
+    }
 
     const resultText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "";
 

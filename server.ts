@@ -39,9 +39,12 @@ async function startServer() {
     systemInstruction: string,
     useGrounding = true
   ) => {
-    // We try a robust sequence of models that fully support Google Search grounding.
-    // gemini-2.5-flash and gemini-2.0-flash are ultra-fast, robust, and rarely suffer from 503 peaks.
-    const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash"];
+    // Latest Gemini models in order of preference
+    // 2.5-pro: Newest, most capable (May 2025)
+    // 2.5-flash: Fast, reliable alternative
+    // 2.0-flash: Stable proven model
+    // All support Google Search grounding
+    const models = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
     let lastError: any;
 
     for (const model of models) {
@@ -52,7 +55,12 @@ async function startServer() {
       for (let i = 0; i < retries; i++) {
         try {
           const config: any = {
-            systemInstruction
+            systemInstruction,
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+            }
           };
           if (useGrounding) {
             config.tools = [{ googleSearch: {} }];
@@ -61,25 +69,27 @@ async function startServer() {
           const response = await activeGenAI.models.generateContent({
             model,
             contents,
-            config,
-          });
+            ...config,
+          } as any);
+          console.log(`[Gemini Execution] ✅ Success with model ${model}`);
           return response;
         } catch (error: any) {
           lastError = error;
           const errStr = (typeof error === "object" && error !== null) ? (error.message || JSON.stringify(error)) : String(error);
-          const isTransient = errStr.includes("503") || errStr.includes("UNAVAILABLE") || errStr.toLowerCase().includes("high demand") || errStr.toLowerCase().includes("temporary spikes") || errStr.toLowerCase().includes("unavailable");
+          const isTransient = errStr.includes("503") || errStr.includes("UNAVAILABLE") || errStr.toLowerCase().includes("high demand") || errStr.toLowerCase().includes("temporary spikes") || errStr.toLowerCase().includes("unavailable") || errStr.toLowerCase().includes("timeout");
           
           if (isTransient) {
             if (i < retries - 1) {
-              console.warn(`[Gemini Retry] Transient error (503/UNAVAILABLE) on model ${model}. Retrying attempt ${i + 2}/${retries} in ${delayMs}ms...`);
+              console.warn(`[Gemini Retry] Transient error on model ${model}. Retrying attempt ${i + 2}/${retries} in ${delayMs}ms... Error: ${errStr.substring(0, 80)}`);
               await new Promise((resolve) => setTimeout(resolve, delayMs));
               delayMs *= 2; // Exponential backoff
               continue;
             } else {
-              console.warn(`[Gemini Fallback] Model ${model} failed after all retries with 503/UNAVAILABLE. Trying next fallback model...`);
+              console.warn(`[Gemini Fallback] Model ${model} failed after ${retries} retries. Trying next fallback model...`);
             }
           } else {
             // Throw immediate non-transient errors (e.g. invalid key, quota 429, permission error)
+            console.error(`[Gemini Error] Non-transient error with ${model}: ${errStr.substring(0, 120)}`);
             throw error;
           }
         }

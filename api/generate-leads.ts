@@ -27,36 +27,92 @@ const generateWithRetry = async (
   contents: string,
   systemInstruction: string
 ) => {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  // Latest Gemini models - tried in order of preference
+  // 2.5-pro: Newest, most capable, supports grounding
+  // 2.5-flash: Fast, reliable, supports grounding
+  // 2.0-flash: Stable fallback
+  const models = [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash", 
+    "gemini-2.0-flash",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash"
+  ];
 
+  let lastError: any;
+  
   for (const model of models) {
     try {
-      const response = await activeGenAI.models.generateContent({
-        model,
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: contents }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
-        tools: [
-          {
-            googleSearch: {},
-          },
-        ],
-      } as any);
+      console.log(`[Gemini] Attempting lead generation with model: ${model}`);
+      
+      // Retry logic for transient failures
+      let retries = 3;
+      let delay = 1500;
+      
+      for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+          const response = await activeGenAI.models.generateContent({
+            model,
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: contents }],
+              },
+            ],
+            systemInstruction,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+              topK: 40,
+              topP: 0.95,
+            },
+            tools: [
+              {
+                googleSearch: {},
+              },
+            ],
+          } as any);
 
-      return response;
+          console.log(`[Gemini] ✅ Success with model ${model} on attempt ${attempt + 1}`);
+          return response;
+        } catch (attemptError: any) {
+          const errorMsg = attemptError?.message || JSON.stringify(attemptError);
+          const isTransient = 
+            errorMsg.includes("503") || 
+            errorMsg.includes("UNAVAILABLE") || 
+            errorMsg.includes("timeout") ||
+            errorMsg.includes("deadline");
+          
+          if (isTransient && attempt < retries - 1) {
+            console.warn(
+              `[Gemini] Transient error on ${model} attempt ${attempt + 1}/${retries}. ` +
+              `Retrying in ${delay}ms... Error: ${errorMsg.substring(0, 80)}`
+            );
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2; // Exponential backoff
+            continue;
+          } else if (isTransient) {
+            console.warn(`[Gemini] Transient error persisted for ${model}. Trying next model...`);
+            break; // Try next model
+          } else {
+            // Non-transient error (auth, quota, etc)
+            throw attemptError;
+          }
+        }
+      }
     } catch (error: any) {
-      console.warn(`[${model}] Error:`, error?.message);
+      lastError = error;
+      const errorMsg = error?.message || JSON.stringify(error);
+      console.warn(
+        `[Gemini] Model ${model} failed: ${errorMsg.substring(0, 100)}. ` +
+        `Trying next model...`
+      );
+      // Continue to next model
     }
   }
-
-  throw new Error("Unable to reach Gemini API - using fallback results");
+  
+  // If we get here, all models failed
+  throw lastError || new Error("All Gemini models exhausted - using fallback");
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
