@@ -41,6 +41,35 @@ import { Canton } from "./types";
 import { translations, Language, t } from "./translations";
 
 export default function App() {
+  const parseCompactSearchInput = (rawKeyword: string, rawLocation: string) => {
+    const normalizedLocation = rawLocation.replace(/\+/g, " ").replace(/\s+/g, " ").trim();
+    const normalizedKeyword = rawKeyword.replace(/\s+/g, " ").trim();
+
+    if (normalizedLocation.length > 0) {
+      return {
+        keyword: normalizedKeyword.replace(/\+/g, " ").replace(/\s+/g, " ").trim(),
+        location: normalizedLocation,
+      };
+    }
+
+    const chunks = normalizedKeyword
+      .split("+")
+      .map((chunk) => chunk.trim())
+      .filter((chunk) => chunk.length > 0);
+
+    if (chunks.length >= 2) {
+      return {
+        keyword: chunks[0],
+        location: chunks.slice(1).join(" "),
+      };
+    }
+
+    return {
+      keyword: normalizedKeyword.replace(/\+/g, " ").replace(/\s+/g, " ").trim(),
+      location: "",
+    };
+  };
+
   // Locked to Lead Generator Pro for premium lightweight experience
   const activeTab = "lead-generator";
   
@@ -158,15 +187,19 @@ export default function App() {
     e.preventDefault();
     if (!leadKeyword.trim()) return;
 
+    const parsedInput = parseCompactSearchInput(leadKeyword, leadLocation);
+    const effectiveKeyword = parsedInput.keyword;
+    const effectiveLocation = parsedInput.location;
+
     setIsLoadingLeads(true);
     setLeadsError(null);
     setLeadsSources([]);
     
     // Nice status sequence
-    setLeadsProgress("Inizializzazione mappatura Google Maps per aziende nel settore " + leadKeyword + "...");
+    setLeadsProgress("Inizializzazione mappatura Google Maps per aziende nel settore " + effectiveKeyword + "...");
     
     const progressSteps = [
-      "Interrogando i database di Google Maps Places per " + leadKeyword + " a " + (leadLocation || "tutta la Svizzera") + "...",
+      "Interrogando i database di Google Maps Places per " + effectiveKeyword + " a " + (effectiveLocation || "tutta la Svizzera") + "...",
       "Scandagliando i risultati territoriali di Google Maps ed estraendo recapiti di contatto...",
       "Analizzando i siti web ufficiali rilevati da Maps per ricavare indirizzi e-mail e canali social...",
       "Applicando motore di qualificazione locale per verificare coerenza e priorita commerciale...",
@@ -186,16 +219,22 @@ export default function App() {
         "Content-Type": "application/json"
       };
 
+      const controller = new AbortController();
+      const requestTimeout = window.setTimeout(() => controller.abort(), 45000);
+
       const response = await fetch("/api/generate-leads", {
         method: "POST",
         headers,
+        signal: controller.signal,
         body: JSON.stringify({
-          keyword: leadKeyword,
-          location: leadLocation,
+          keyword: effectiveKeyword,
+          location: effectiveLocation,
           canton: selectedCantonCode || "",
           radius: searchRadius
         }),
       });
+
+      clearTimeout(requestTimeout);
 
       clearInterval(interval);
 
@@ -227,7 +266,11 @@ export default function App() {
     } catch (err: any) {
       clearInterval(interval);
       console.error(err);
-      setLeadsError(err.message || "Errore di rete durante il reperimento dei dati marketing.");
+      if (err?.name === "AbortError") {
+        setLeadsError("Ricerca troppo lenta su rete mobile. Riprova o riduci i termini di ricerca.");
+      } else {
+        setLeadsError(err.message || "Errore di rete durante il reperimento dei dati marketing.");
+      }
     } finally {
       setIsLoadingLeads(false);
       setLeadsProgress("");

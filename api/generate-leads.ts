@@ -247,6 +247,38 @@ const buildAssociatedKeywords = (keyword: string): string[] => {
   return Array.from(terms).slice(0, 5);
 };
 
+const parseCompactSearchInput = (rawKeyword: string, rawLocation?: string) => {
+  const location = String(rawLocation || "")
+    .replace(/\+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const keyword = String(rawKeyword || "").replace(/\s+/g, " ").trim();
+
+  if (location.length > 0) {
+    return {
+      keyword: keyword.replace(/\+/g, " ").replace(/\s+/g, " ").trim(),
+      location,
+    };
+  }
+
+  const chunks = keyword
+    .split("+")
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 0);
+
+  if (chunks.length >= 2) {
+    return {
+      keyword: chunks[0],
+      location: chunks.slice(1).join(" "),
+    };
+  }
+
+  return {
+    keyword: keyword.replace(/\+/g, " ").replace(/\s+/g, " ").trim(),
+    location: "",
+  };
+};
+
 const parseLocalChLeads = (html: string, keyword: string, location?: string) => {
   const leads: any[] = [];
   const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -349,14 +381,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { keyword, location, radius } = req.body;
+    const parsedInput = parseCompactSearchInput(keyword, location);
+    const effectiveKeyword = parsedInput.keyword;
+    const effectiveLocation = parsedInput.location;
 
-    if (!keyword) {
+    if (!effectiveKeyword) {
       return res.status(400).json({ error: "Keyword obbligatorio" });
     }
 
     const radiusValue = Number(radius);
 
-    const associatedKeywords = buildAssociatedKeywords(keyword);
+    const associatedKeywords = buildAssociatedKeywords(effectiveKeyword);
     let aggregatedLeads: any[] = [];
     let aggregatedSources: { title: string; uri: string }[] = [];
 
@@ -409,39 +444,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ].join(" ");
 
       const termsToSearch = associatedKeywords.slice(0, 3);
-
-      for (const term of termsToSearch) {
-        const userPrompt = `Trova almeno 6 aziende nel settore "${term}" ${location ? `a ${location}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
-
-        try {
-          const aiResult = await queryPerplexity({
-            systemPrompt,
-            userPrompt,
-            temperature: 0.2,
-            maxTokens: 1800,
-            responseFormat: {
-              type: "json_schema",
-              json_schema: {
-                name: "lead_response",
-                schema: leadSchema,
-              },
+      const perplexityTasks = termsToSearch.map(async (term) => {
+        const userPrompt = `Trova almeno 6 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
+        const aiResult = await queryPerplexity({
+          systemPrompt,
+          userPrompt,
+          temperature: 0.2,
+          maxTokens: 1800,
+          responseFormat: {
+            type: "json_schema",
+            json_schema: {
+              name: "lead_response",
+              schema: leadSchema,
             },
-          });
+          },
+        });
 
-          const leadsFromAI = parseLeadsFromText(aiResult.text).map((lead) => normalizeLead(lead, keyword));
-          aggregatedLeads = aggregatedLeads.concat(leadsFromAI);
-          aggregatedSources = aggregatedSources.concat(aiResult.sources);
-        } catch (termError) {
-          console.warn("[Lead Generation][Perplexity term error]", term, termError);
+        return {
+          term,
+          leads: parseLeadsFromText(aiResult.text).map((lead) => normalizeLead(lead, effectiveKeyword)),
+          sources: aiResult.sources,
+        };
+      });
+
+      const perplexityResults = await Promise.allSettled(perplexityTasks);
+      for (const result of perplexityResults) {
+        if (result.status === "fulfilled") {
+          aggregatedLeads = aggregatedLeads.concat(result.value.leads);
+          aggregatedSources = aggregatedSources.concat(result.value.sources);
+        } else {
+          console.warn("[Lead Generation][Perplexity term error]", result.reason);
         }
       }
     }
 
     const localChTerms = associatedKeywords.slice(0, 2);
-    for (const term of localChTerms) {
-      const localResults = await searchLocalCh(term, location);
-      if (localResults.length > 0) {
-        aggregatedLeads = aggregatedLeads.concat(localResults.map((lead) => normalizeLead(lead, keyword)));
+    const localTasks = localChTerms.map((term) => searchLocalCh(term, effectiveLocation));
+    const localResultsSettled = await Promise.allSettled(localTasks);
+    for (const result of localResultsSettled) {
+      if (result.status === "fulfilled" && result.value.length > 0) {
+        aggregatedLeads = aggregatedLeads.concat(result.value.map((lead) => normalizeLead(lead, effectiveKeyword)));
       }
     }
 
@@ -459,12 +501,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const leadsArray = buildFallbackLeads(keyword, location, radiusValue);
+    const leadsArray = buildFallbackLeads(effectiveKeyword, effectiveLocation, radiusValue);
 
     res.json({
       success: true,
       leads: leadsArray,
-      searchedKeywords: [keyword],
+      searchedKeywords: [effectiveKeyword],
       sources: [],
     });
   } catch (error: any) {
