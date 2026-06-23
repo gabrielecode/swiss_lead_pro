@@ -61,16 +61,16 @@ export async function searchLocalCh(
 }
 
 /**
- * Combina risultati da Gemini + local.ch
+ * Combina risultati locali + local.ch
  */
-export async function combineGeminiAndLocalCh(
-  geminiLeads: any[],
+export async function combineLeadSourcesWithLocalCh(
+  baseLeads: any[],
   localChLeads: LocalChResult[]
 ): Promise<any[]> {
   // Deduplica e combina i risultati
-  const combined = [...geminiLeads];
+  const combined = [...baseLeads];
 
-  // Aggiungi risultati da local.ch che non sono già in geminiLeads
+  // Aggiungi risultati da local.ch che non sono gia presenti in baseLeads
   for (const localLead of localChLeads) {
     const exists = combined.some(
       (g) =>

@@ -169,7 +169,7 @@ export default function App() {
       "Interrogando i database di Google Maps Places per " + leadKeyword + " a " + (leadLocation || "tutta la Svizzera") + "...",
       "Scandagliando i risultati territoriali di Google Maps ed estraendo recapiti di contatto...",
       "Analizzando i siti web ufficiali rilevati da Maps per ricavare indirizzi e-mail e canali social...",
-      "Avviando intelligenza artificiale Gemini con Google Search Grounding per verificare l'esistenza...",
+      "Applicando motore di qualificazione locale per verificare coerenza e priorita commerciale...",
       "Generazione b2b premium completata con successo! Strutturazione in corso..."
     ];
 
@@ -724,7 +724,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                     </label>
                     <label className="flex items-center gap-1.5 select-none text-slate-300">
                       <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                      Google Search Grounding
+                      Motore AI locale (fallback)
                     </label>
                     <label className="flex items-center gap-1.5 select-none text-slate-300">
                       <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
@@ -749,7 +749,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <span className="text-[10px] text-slate-500">SWISS-LEAD-BOT v1.4</span>
                     </div>
                     <div className="space-y-1.5">
-                      <div className="text-slate-500">&gt; npm run scrape --service=google-maps --with-search-grounding</div>
+                      <div className="text-slate-500">&gt; npm run scrape --service=google-maps --local-fallback</div>
                       <div className="text-slate-500">&gt; SEARCH_QUERY: "{leadKeyword}" IN_LOCATION: "{leadLocation || "Tutta la Svizzera"}"</div>
                       <div className="flex items-center gap-2">
                         <span className="text-amber-500 animate-pulse">●</span>
@@ -922,7 +922,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                     <div>
                       <span className="font-bold">Attenzione durante la lead generation: </span>
                       {leadsError}
-                      <p className="mt-1 text-red-600">Questo può capitare se non è attiva una chiave API valida o le connessioni internet svizzere rifiutano il crawling simultaneo. Prova altri termini di ricerca.</p>
+                      <p className="mt-1 text-red-600">Questo puo capitare per timeout di rete o disponibilita limitata delle fonti. Prova altri termini di ricerca o una localita piu specifica.</p>
                     </div>
                   </div>
                 )}

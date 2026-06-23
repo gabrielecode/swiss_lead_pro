@@ -1,31 +1,128 @@
-import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 
-dotenv.config();
+const hasPerplexityKey = (): boolean => Boolean(process.env.PERPLEXITY_API_KEY);
 
-const getGenAIClient = (req: VercelRequest): GoogleGenAI => {
-  const clientKey = req.headers["x-gemini-key"] as string | undefined;
-  const activeKey = clientKey || process.env.GEMINI_API_KEY;
+const collectSources = (data: any) => {
+  const fromCitations = Array.isArray(data?.citations) ? data.citations : [];
+  const fromSearchResults = Array.isArray(data?.search_results) ? data.search_results : [];
 
-  if (!activeKey) {
-    throw new Error("API Key di Gemini non configurata");
+  const raw = [...fromCitations, ...fromSearchResults]
+    .map((item: any) => {
+      if (!item) return null;
+      if (typeof item === "string") return { title: item, uri: item };
+
+      const uri = item.uri || item.url || item.link;
+      if (!uri || typeof uri !== "string") return null;
+
+      return { title: item.title || uri, uri };
+    })
+    .filter(Boolean) as { title: string; uri: string }[];
+
+  return raw.filter((source, index, self) => self.findIndex((item) => item.uri === source.uri) === index);
+};
+
+const queryPerplexity = async ({
+  systemPrompt,
+  userPrompt,
+  temperature = 0.2,
+  maxTokens = 1400,
+  responseFormat,
+}: {
+  systemPrompt: string;
+  userPrompt: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: any;
+}) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    throw new Error("PERPLEXITY_API_KEY non configurata.");
   }
 
-  return new GoogleGenAI({
-    apiKey: activeKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
+  const response = await fetch("https://api.perplexity.ai/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      model: process.env.PERPLEXITY_MODEL || "sonar-pro",
+      temperature,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      ...(responseFormat ? { response_format: responseFormat } : {}),
+    }),
   });
+
+  const payloadText = await response.text();
+  let payload: any = {};
+
+  try {
+    payload = payloadText ? JSON.parse(payloadText) : {};
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    const message = payload?.error?.message || payload?.message || payloadText || "Errore API Perplexity";
+    throw new Error(message);
+  }
+
+  const content = payload?.choices?.[0]?.message?.content;
+  const text = typeof content === "string" ? content : JSON.stringify(content ?? "");
+  if (!text || text === "{}" || text === "[]") {
+    throw new Error("Risposta Perplexity non valida o vuota.");
+  }
+
+  return { text, sources: collectSources(payload) };
+};
+
+const buildFallbackAnswer = (prompt: string, language?: string): string => {
+  const lang = (language || "italiana").toLowerCase();
+  const isItalian = lang.includes("it") || lang.includes("ital");
+
+  if (isItalian) {
+    return [
+      "## Risposta temporanea (modalita fallback)",
+      "",
+      `Hai chiesto: \"${prompt}\"`,
+      "",
+      "Al momento il provider AI esterno non e configurato.",
+      "Ho comunque preparato una risposta strutturata per non bloccare il flusso:",
+      "",
+      "1. Definisci obiettivo e vincoli della richiesta.",
+      "2. Raccogli 3-5 fonti locali svizzere ufficiali.",
+      "3. Confronta requisiti federali e cantonali.",
+      "4. Produci una sintesi operativa con prossimi passi.",
+      "",
+      "Nota: integrazione Perplexity prevista nel prossimo step.",
+    ].join("\n");
+  }
+
+  return [
+    "## Temporary response (fallback mode)",
+    "",
+    `You asked: \"${prompt}\"`,
+    "",
+    "The external AI provider is currently not configured.",
+    "Here is a structured response path to keep your workflow unblocked:",
+    "",
+    "1. Define objective and constraints.",
+    "2. Collect 3-5 official Swiss-local sources.",
+    "3. Compare federal and canton-level requirements.",
+    "4. Produce an action-oriented summary with next steps.",
+    "",
+    "Note: Perplexity integration is planned for the next step.",
+  ].join("\n");
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Gemini-Key");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     res.status(200).end();
@@ -42,64 +139,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Il prompt è obbligatorio" });
     }
 
-    let activeGenAI: GoogleGenAI;
-    try {
-      activeGenAI = getGenAIClient(req);
-    } catch (err: any) {
-      return res.status(401).json({ error: err.message });
+    if (hasPerplexityKey()) {
+      const systemPrompt = `Sei un assistente esperto per la ricerca in Svizzera. Rispondi in lingua ${language || "italiana"}, con tono professionale e concreto.`;
+      const aiResult = await queryPerplexity({
+        systemPrompt,
+        userPrompt: prompt,
+        temperature: 0.3,
+        maxTokens: 1600,
+      });
+
+      return res.json({
+        answer: aiResult.text,
+        sources: aiResult.sources.slice(0, 8),
+      });
     }
 
-    const systemInstruction = `Sei un assistente esperto per la ricerca in Svizzera.
-Rispondi in modo cordiale, preciso e in lingua ${language || "italiana"}.`;
-
-    // Try latest Gemini models in order
-    const models = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"];
-    let lastError: any;
-    let response;
-
-    for (const model of models) {
-      try {
-        console.log(`[Ask-AI] Attempting with model: ${model}`);
-        response = await activeGenAI.models.generateContent({
-          model,
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt }],
-            },
-          ],
-          systemInstruction,
-          generationConfig: {
-            maxOutputTokens: 2048,
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-          },
-          tools: [
-            {
-              googleSearch: {},
-            },
-          ],
-        } as any);
-
-        console.log(`[Ask-AI] ✅ Success with model ${model}`);
-        break;
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`[Ask-AI] Model ${model} failed:`, error?.message);
-        // Try next model
-      }
-    }
-
-    if (!response) {
-      throw lastError || new Error("Errore durante la richiesta a Gemini");
-    }
-
-    const resultText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const answer = buildFallbackAnswer(prompt, language);
 
     res.json({
-      result: resultText,
-      candidates: response.candidates,
+      answer,
+      sources: [],
     });
   } catch (error: any) {
     console.error("[Ask-AI Error]", error);
