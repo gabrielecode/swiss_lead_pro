@@ -974,7 +974,94 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-mono">Fai clic su un'azienda per preparare l'email</span>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="md:hidden p-3 space-y-3">
+                      {filteredLeads.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 italic text-xs border border-slate-150 rounded-xl bg-slate-50">
+                          {t('app.table.empty', language)}
+                        </div>
+                      ) : (
+                        filteredLeads.map((lead) => {
+                          const isSelected = selectedLeadForEmail?.id === lead.id || selectedLeadForEmail?.company === lead.company;
+                          return (
+                            <button
+                              key={lead.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedLeadForEmail(lead);
+                                setGeneratedProposal(null);
+                              }}
+                              className={`w-full text-left rounded-xl border p-3 transition-all ${
+                                isSelected
+                                  ? "border-red-300 bg-red-50/40"
+                                  : "border-slate-200 bg-white hover:bg-slate-50"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="font-semibold text-slate-800 text-sm leading-tight">{lead.company}</div>
+                                  <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                    <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span className="truncate">{lead.sector}</span>
+                                  </div>
+                                </div>
+                                <span className={`inline-flex px-2 py-1 rounded text-[10px] font-bold font-mono tracking-tight ${
+                                  lead.marketingScore >= 80 ? "bg-red-100 text-red-700" :
+                                  lead.marketingScore >= 60 ? "bg-amber-100 text-amber-700" :
+                                  "bg-slate-100 text-slate-600"
+                                }`}>
+                                  {lead.marketingScore}%
+                                </span>
+                              </div>
+
+                              <div className="mt-2 text-[11px] text-slate-600 font-mono leading-snug flex items-start gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                <span className="line-clamp-3">{lead.address}</span>
+                              </div>
+
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                                {lead.phone && lead.phone !== "Non disponibile" && (
+                                  <span className="inline-flex items-center gap-1 text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
+                                    <Phone className="w-3 h-3" />
+                                    <span>{lead.phone}</span>
+                                  </span>
+                                )}
+                                {lead.email && lead.email !== "Non disponibile" && (
+                                  <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-1 rounded-md max-w-full">
+                                    <Mail className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{lead.email}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="mt-2 flex items-center justify-between gap-2">
+                                {lead.website && lead.website !== "Non disponibile" ? (
+                                  <a
+                                    href={lead.website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[11px] text-slate-500 hover:text-red-600 inline-flex items-center gap-1 min-w-0"
+                                  >
+                                    <Globe className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{lead.website}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
+                                    <Globe className="w-3 h-3" />
+                                    Nessun sito
+                                  </span>
+                                )}
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                                  Usa Outreach
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
                           <tr className="bg-slate-100 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200 text-[10px]">
