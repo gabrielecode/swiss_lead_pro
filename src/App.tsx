@@ -334,16 +334,18 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      // Canton filter matching if active
+      // Canton filter matching if active - only filter if a specific canton is selected
       let matchesCanton = true;
-      if (selectedCantonCode) {
+      if (selectedCantonCode && selectedCanton) {
         const addrUpper = lead.address.toUpperCase();
         const codeUpper = selectedCantonCode.toUpperCase();
+        const cantonNameUpper = selectedCanton.name.toUpperCase();
+        // Check for canton code in format (TI), or canton name like Ticino
         matchesCanton = 
           addrUpper.includes(`(${codeUpper})`) ||
-          addrUpper.includes(` ${codeUpper} `) ||
-          addrUpper.includes(codeUpper) ||
-          (selectedCanton && addrUpper.includes(selectedCanton.name.toUpperCase()));
+          addrUpper.includes(`${codeUpper},`) ||
+          addrUpper.includes(cantonNameUpper) ||
+          addrUpper.includes(`CANTON ${cantonNameUpper}`);
       }
       
       const matchesSearch = 
