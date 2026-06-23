@@ -334,19 +334,8 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      // Canton filter matching if active - only filter if a specific canton is selected
-      let matchesCanton = true;
-      if (selectedCantonCode && selectedCanton) {
-        const addrUpper = lead.address.toUpperCase();
-        const codeUpper = selectedCantonCode.toUpperCase();
-        const cantonNameUpper = selectedCanton.name.toUpperCase();
-        // Check for canton code in format (TI), or canton name like Ticino
-        matchesCanton = 
-          addrUpper.includes(`(${codeUpper})`) ||
-          addrUpper.includes(`${codeUpper},`) ||
-          addrUpper.includes(cantonNameUpper) ||
-          addrUpper.includes(`CANTON ${cantonNameUpper}`);
-      }
+      // Note: Canton filter temporarily disabled until backend adds canton field to lead data
+      // TODO: Implement canton filtering once leads have a dedicated canton field
       
       const matchesSearch = 
         lead.company.toLowerCase().includes(leadSearchText.toLowerCase()) ||
@@ -359,9 +348,9 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
       const matchesEmail = !onlyWithEmail || (lead.email && lead.email !== "Non disponibile" && lead.email !== "Contatto via Form");
       const matchesWebsite = !onlyWithWebsite || (lead.website && lead.website !== "Non disponibile");
 
-      return matchesCanton && matchesSearch && matchesScore && matchesEmail && matchesWebsite;
+      return matchesSearch && matchesScore && matchesEmail && matchesWebsite;
     });
-  }, [leads, selectedCantonCode, selectedCanton, leadSearchText, minScoreFilter, onlyWithEmail, onlyWithWebsite]);
+  }, [leads, leadSearchText, minScoreFilter, onlyWithEmail, onlyWithWebsite]);
 
   const downloadLeadsCSV = () => {
     if (filteredLeads.length === 0) return;
