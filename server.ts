@@ -239,7 +239,7 @@ async function startServer() {
 
         return res.json({
           answer: aiResult.text,
-          sources: aiResult.sources.slice(0, 8),
+          sources: aiResult.sources.slice(0, 10),
         });
       }
 
@@ -358,7 +358,7 @@ async function startServer() {
 
       res.json({
         success: true,
-        leads: finalLeads,
+        leads: finalLeads.slice(0, 50),
         searchedKeywords: relatedKeywords,
         sources: [],
       });
