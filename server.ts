@@ -316,7 +316,7 @@ async function startServer() {
           ].join(" ");
 
           for (const term of relatedKeywords.slice(0, 3)) {
-            const userPrompt = `Trova almeno 6 aziende nel settore "${term}" ${location ? `a ${location}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
+            const userPrompt = `Trova almeno 50 aziende nel settore "${term}" ${location ? `a ${location}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
             const aiResult = await queryPerplexity({
               systemPrompt,
               userPrompt,
