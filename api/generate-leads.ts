@@ -25,7 +25,7 @@ const queryPerplexity = async ({
   systemPrompt,
   userPrompt,
   temperature = 0.2,
-  maxTokens = 1400,
+  maxTokens = 4000,
   responseFormat,
 }: {
   systemPrompt: string;
@@ -244,7 +244,7 @@ const buildAssociatedKeywords = (keyword: string): string[] => {
     terms.add(`${keyword} professionale`);
   }
 
-  return Array.from(terms).slice(0, 5);
+  return Array.from(terms).slice(0, 9);
 };
 
 const parseCompactSearchInput = (rawKeyword: string, rawLocation?: string) => {
@@ -332,7 +332,7 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     }
   }
 
-  return dedupeLeads(leads).slice(0, 8);
+  return dedupeLeads(leads).slice(0, 15);
 };
 
 const searchLocalCh = async (keyword: string, location?: string) => {
@@ -443,14 +443,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "Non usare markdown, nessun testo extra.",
       ].join(" ");
 
-      const termsToSearch = associatedKeywords.slice(0, 3);
+      const termsToSearch = associatedKeywords.slice(0, 9);
       const perplexityTasks = termsToSearch.map(async (term) => {
-        const userPrompt = `Trova almeno 6 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
+        const userPrompt = `Trova almeno 15 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
         const aiResult = await queryPerplexity({
           systemPrompt,
           userPrompt,
           temperature: 0.2,
-          maxTokens: 1800,
+          maxTokens: 4000,
           responseFormat: {
             type: "json_schema",
             json_schema: {
