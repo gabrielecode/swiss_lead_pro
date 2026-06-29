@@ -332,7 +332,7 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     }
   }
 
-  return dedupeLeads(leads).slice(0, 15);
+  return dedupeLeads(leads).slice(0, 35);
 };
 
 const searchLocalCh = async (keyword: string, location?: string) => {
@@ -445,7 +445,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const termsToSearch = associatedKeywords.slice(0, 9);
       const perplexityTasks = termsToSearch.map(async (term) => {
-        const userPrompt = `Trova almeno 15 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
+        const userPrompt = `Trova almeno 30 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
         const aiResult = await queryPerplexity({
           systemPrompt,
           userPrompt,
