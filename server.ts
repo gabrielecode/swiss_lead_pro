@@ -27,15 +27,18 @@ async function startServer() {
     const slugBase = normalizeSlug(base) || "business";
     const slugCity = normalizeSlug(city) || "ch";
 
-    const names = [
-      `${base} Studio ${city}`,
-      `${base} Partners ${city}`,
-      `${base} Consulting ${city}`,
-      `${base} Group Suisse`,
-      `${base} Service Center ${city}`,
-      `${base} Solutions CH`,
-    ];
-
+  const names = [
+  `${base} Sagl`,
+  `${base} SA`,
+  `${base} GmbH`,
+  `${base} ${city}`,
+  `${base} di ${city}`,
+  `${base} Agenzia ${city}`,
+  `${base} Studio ${city}`,
+  `${base} Svizzera`,
+  `${base} Service ${city}`,
+  `${base} Suisse`,
+];
     return names.map((company, idx) => ({
       company,
       sector: base,
