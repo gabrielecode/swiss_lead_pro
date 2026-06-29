@@ -20,7 +20,7 @@ export const queryPerplexity = async ({
   systemPrompt,
   userPrompt,
   temperature = 0.2,
-  maxTokens = 1400,
+  maxTokens = 4000,
   responseFormat,
 }: QueryPerplexityParams): Promise<PerplexityResponse> => {
   const apiKey = process.env.OPENROUTER_API_KEY;
