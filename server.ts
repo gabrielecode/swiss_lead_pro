@@ -4,7 +4,6 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { searchLocalCh, combineLeadSourcesWithLocalCh } from "./local-ch-integration";
 import { hasPerplexityKey, queryPerplexity } from "./api/perplexity-client";
-import { hasPerplexityKey, queryPerplexity } from "./api/perplexity-client";
 dotenv.config();
 
 async function startServer() {
