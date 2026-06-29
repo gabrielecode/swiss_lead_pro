@@ -333,6 +333,8 @@ async function startServer() {
             aggregatedLeads = aggregatedLeads.concat(parsedLeads);
           }
 
+          console.log("[DEBUG] aggregatedLeads count:", aggregatedLeads.length);
+          console.log("[DEBUG] aggregatedLeads sample:", JSON.stringify(aggregatedLeads.slice(0, 1)));
           if (aggregatedLeads.length > 0) {
             finalLeads = dedupeLeads(aggregatedLeads);
           }
