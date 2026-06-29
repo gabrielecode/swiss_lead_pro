@@ -315,7 +315,7 @@ async function startServer() {
             "Non usare markdown, nessun testo extra.",
           ].join(" ");
 
-          for (const term of relatedKeywords.slice(0, 3)) {
+          for (const term of relatedKeywords.slice(0, 9)) {
             const userPrompt = `Trova almeno 50 aziende nel settore "${term}" ${location ? `a ${location}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
             const aiResult = await queryPerplexity({
               systemPrompt,
