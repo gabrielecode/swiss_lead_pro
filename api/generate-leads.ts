@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
 
-const hasPerplexityKey = (): boolean => Boolean(process.env.PERPLEXITY_API_KEY);
+// Controlla la chiave di OpenRouter configurata su Vercel
+const hasPerplexityKey = (): boolean => Boolean(process.env.OPENROUTER_API_KEY);
 
 const collectSources = (data: any) => {
   const fromCitations = Array.isArray(data?.citations) ? data.citations : [];
@@ -34,19 +35,19 @@ const queryPerplexity = async ({
   maxTokens?: number;
   responseFormat?: any;
 }) => {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error("PERPLEXITY_API_KEY non configurata.");
+    throw new Error("OPENROUTER_API_KEY non configurata su Vercel.");
   }
 
-  const response = await fetch("https://api.perplexity.ai/chat/completions", {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.PERPLEXITY_MODEL || "sonar-pro",
+      model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3-70b-instruct",
       temperature,
       max_tokens: maxTokens,
       messages: [
@@ -67,14 +68,14 @@ const queryPerplexity = async ({
   }
 
   if (!response.ok) {
-    const message = payload?.error?.message || payload?.message || payloadText || "Errore API Perplexity";
+    const message = payload?.error?.message || payload?.message || payloadText || "Errore API OpenRouter";
     throw new Error(message);
   }
 
   const content = payload?.choices?.[0]?.message?.content;
   const text = typeof content === "string" ? content : JSON.stringify(content ?? "");
   if (!text || text === "{}" || text === "[]") {
-    throw new Error("Risposta Perplexity non valida o vuota.");
+    throw new Error("Risposta OpenRouter non valida o vuota.");
   }
 
   return { text, sources: collectSources(payload) };
@@ -96,12 +97,16 @@ const buildFallbackLeads = (keyword: string, location?: string, radius?: number)
   const slugCity = normalizeSlug(city) || "ch";
 
   const names = [
+    `${base} Sagl`,
+    `${base} SA`,
+    `${base} GmbH`,
+    `${base} ${city}`,
+    `${base} di ${city}`,
+    `${base} Agenzia ${city}`,
     `${base} Studio ${city}`,
-    `${base} Partners ${city}`,
-    `${base} Consulting ${city}`,
-    `${base} Group Suisse`,
-    `${base} Service Center ${city}`,
-    `${base} Solutions CH`,
+    `${base} Svizzera`,
+    `${base} Service ${city}`,
+    `${base} Suisse`,
   ];
 
   return names.map((company, idx) => ({
@@ -180,7 +185,7 @@ const normalizeLead = (lead: any, defaultSector: string) => {
     marketingScore: safeScore,
     auditResult: toText(lead?.auditResult, "Analisi non disponibile"),
     customStrategy: toText(lead?.customStrategy, "Strategia commerciale da definire"),
-    source: toText(lead?.source, "perplexity"),
+    source: toText(lead?.source, "openrouter"),
   };
 };
 
@@ -244,7 +249,7 @@ const buildAssociatedKeywords = (keyword: string): string[] => {
     terms.add(`${keyword} professionale`);
   }
 
-  return Array.from(terms).slice(0, 9);
+  return Array.from(terms).slice(0, 5);
 };
 
 const parseCompactSearchInput = (rawKeyword: string, rawLocation?: string) => {
@@ -337,7 +342,7 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
 
 const searchLocalCh = async (keyword: string, location?: string) => {
   const where = location && location.trim().length > 0 ? location.trim() : "Svizzera";
-  const url = `https://www.local.ch/it/q?what=${encodeURIComponent(keyword)}&where=${encodeURIComponent(where)}`;
+  const url = `[https://www.local.ch/it/q?what=$](https://www.local.ch/it/q?what=$){encodeURIComponent(keyword)}&where=${encodeURIComponent(where)}`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
@@ -473,13 +478,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           aggregatedLeads = aggregatedLeads.concat(result.value.leads);
           aggregatedSources = aggregatedSources.concat(result.value.sources);
         } else {
-          console.warn("[Lead Generation][Perplexity term error]", result.reason);
+          console.warn("[Lead Generation][OpenRouter term error]", result.reason);
         }
       }
     }
 
-    const localChTerms = associatedKeywords.slice(0, 2);
-    const localTasks = localChTerms.map((term) => searchLocalCh(term, effectiveLocation));
+    // Integrazione Local.ch diretta (quella che inietta le pubblicità)
+    const localTasks = associatedKeywords.slice(0, 2).map((term) => searchLocalCh(term, effectiveLocation));
     const localResultsSettled = await Promise.allSettled(localTasks);
     for (const result of localResultsSettled) {
       if (result.status === "fulfilled" && result.value.length > 0) {
@@ -487,28 +492,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const finalLeads = dedupeLeads(aggregatedLeads);
-    if (finalLeads.length > 0) {
-      const finalSources = aggregatedSources
-        .filter((source, index, self) => self.findIndex((item) => item.uri === source.uri) === index)
-        .slice(0, 10);
-
-      return res.json({
-        success: true,
-        leads: finalLeads,
-        searchedKeywords: associatedKeywords,
-        sources: finalSources,
-      });
+    let finalLeads = dedupeLeads(aggregatedLeads);
+    
+    if (finalLeads.length === 0) {
+      finalLeads = buildFallbackLeads(effectiveKeyword, effectiveLocation, radiusValue);
     }
 
-    const leadsArray = buildFallbackLeads(effectiveKeyword, effectiveLocation, radiusValue);
+    // INTERCETTAZIONE E PULIZIA TOTALE ANTI-PUBBLICITÀ RIGIDA
+    const forbiddenPatterns = [
+      /Filtrabile per/i, 
+      /I migliori/i, 
+      /Trova il tuo/i, 
+      /Offerte/i, 
+      /^local\.ch$/i
+    ];
 
-    res.json({
-      success: true,
-      leads: leadsArray,
-      searchedKeywords: [effectiveKeyword],
-      sources: [],
+    const cleanedLeads = finalLeads.filter(lead => {
+      const name = lead?.company;
+      if (!name || typeof name !== "string") return false;
+      return !forbiddenPatterns.some(pattern => pattern.test(name.trim()));
     });
+
+    const finalSources = aggregatedSources
+      .filter((source, index, self) => self.findIndex((item) => item.uri === source.uri) === index)
+      .slice(0, 10);
+
+    return res.json({
+      success: true,
+      leads: cleanedLeads.slice(0, 30), // Forza esattamente i 30 lead puliti a schermo
+      searchedKeywords: associatedKeywords,
+      sources: finalSources,
+    });
+
   } catch (error: any) {
     console.error("[Lead Generation Error]", error);
     res.status(500).json({
