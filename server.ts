@@ -27,18 +27,19 @@ async function startServer() {
     const slugBase = normalizeSlug(base) || "business";
     const slugCity = normalizeSlug(city) || "ch";
 
-  const names = [
-  `${base} Sagl`,
-  `${base} SA`,
-  `${base} GmbH`,
-  `${base} ${city}`,
-  `${base} di ${city}`,
-  `${base} Agenzia ${city}`,
-  `${base} Studio ${city}`,
-  `${base} Svizzera`,
-  `${base} Service ${city}`,
-  `${base} Suisse`,
-];
+    const names = [
+      `${base} Sagl`,
+      `${base} SA`,
+      `${base} GmbH`,
+      `${base} ${city}`,
+      `${base} di ${city}`,
+      `${base} Agenzia ${city}`,
+      `${base} Studio ${city}`,
+      `${base} Svizzera`,
+      `${base} Service ${city}`,
+      `${base} Suisse`,
+    ];
+
     return names.map((company, idx) => ({
       company,
       sector: base,
@@ -154,7 +155,7 @@ async function startServer() {
       marketingScore: safeScore,
       auditResult: toText(lead?.auditResult, "Analisi non disponibile"),
       customStrategy: toText(lead?.customStrategy, "Strategia commerciale da definire"),
-      source: toText(lead?.source, "perplexity"),
+      source: toText(lead?.source, "openrouter"),
     };
   };
 
@@ -228,7 +229,8 @@ async function startServer() {
         return res.status(400).json({ error: "Il prompt e obbligatorio" });
       }
 
-      if (hasPerplexityKey()) {
+      // Adattato per leggere OpenRouter o chiavi locali
+      if (Boolean(process.env.OPENROUTER_API_KEY) || hasPerplexityKey()) {
         const systemPrompt = `Sei un assistente esperto per la ricerca in Svizzera. Rispondi in lingua ${language || "italiana"}, con tono professionale e concreto.`;
         const aiResult = await queryPerplexity({
           systemPrompt,
@@ -264,7 +266,8 @@ async function startServer() {
       const relatedKeywords = buildAssociatedKeywords(keyword);
       let finalLeads = buildFallbackLeads(keyword, location, radiusValue);
 
-      if (hasPerplexityKey()) {
+      // SBLOCCATO: Riconosce OpenRouter o Perplexity per far partire l'estrazione AI
+      if (Boolean(process.env.OPENROUTER_API_KEY) || hasPerplexityKey()) {
         let aggregatedLeads: any[] = [];
 
         try {
@@ -316,7 +319,7 @@ async function startServer() {
           ].join(" ");
 
           for (const term of relatedKeywords.slice(0, 9)) {
-            const userPrompt = `Trova almeno 15 aziende nel settore "${term}" ${location ? `a ${location}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
+            const userPrompt = `Trova almeno 30 aziende reali nel settore "${term}" ${location ? `a ${location}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
             const aiResult = await queryPerplexity({
               systemPrompt,
               userPrompt,
@@ -335,13 +338,11 @@ async function startServer() {
             aggregatedLeads = aggregatedLeads.concat(parsedLeads);
           }
 
-          console.log("[DEBUG] aggregatedLeads count:", aggregatedLeads.length);
-          console.log("[DEBUG] aggregatedLeads sample:", JSON.stringify(aggregatedLeads.slice(0, 1)));
           if (aggregatedLeads.length > 0) {
             finalLeads = dedupeLeads(aggregatedLeads);
           }
         } catch (aiErr) {
-          console.warn("[Perplexity Lead Generation Error]", aiErr);
+          console.warn("[Lead Generation Error]", aiErr);
         }
       }
 
@@ -356,9 +357,24 @@ async function startServer() {
         }
       }
 
+      // FILTRO RIGIDO ANTI-PUBBLICITÀ E ANTI-SPAM LOCAL.CH
+      const forbiddenPatterns = [
+        /Filtrabile per/i, 
+        /I migliori/i, 
+        /Trova il tuo/i, 
+        /Offerte/i, 
+        /^local\.ch$/i // Intercetta ed elimina esattamente il record "local.ch"
+      ];
+
+      const cleanedLeads = finalLeads.filter(lead => {
+        const name = lead?.company;
+        if (!name || typeof name !== "string") return false;
+        return !forbiddenPatterns.some(pattern => pattern.test(name.trim()));
+      });
+
       res.json({
         success: true,
-        leads: finalLeads.slice(0, 50),
+        leads: cleanedLeads.slice(0, 30), // Restituisce esattamente i 30 lead puliti a schermo
         searchedKeywords: relatedKeywords,
         sources: [],
       });
