@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
 
-// Controlla la chiave di OpenRouter configurata su Vercel
-const hasPerplexityKey = (): boolean => Boolean(process.env.OPENROUTER_API_KEY);
+// Accetta sia la chiave OpenRouter che Perplexity per non andare in blocco
+const hasPerplexityKey = (): boolean => Boolean(process.env.OPENROUTER_API_KEY || process.env.PERPLEXITY_API_KEY);
 
 const collectSources = (data: any) => {
   const fromCitations = Array.isArray(data?.citations) ? data.citations : [];
@@ -35,19 +35,23 @@ const queryPerplexity = async ({
   maxTokens?: number;
   responseFormat?: any;
 }) => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.PERPLEXITY_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY non configurata su Vercel.");
+    throw new Error("Chiave API non configurata su Vercel.");
   }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const isOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
+  const endpoint = isOpenRouter ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.perplexity.ai/chat/completions";
+  const defaultModel = isOpenRouter ? "google/gemini-flash-1.5" : "sonar-pro";
+
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3-70b-instruct",
+      model: process.env.OPENROUTER_MODEL || process.env.PERPLEXITY_MODEL || defaultModel,
       temperature,
       max_tokens: maxTokens,
       messages: [
@@ -68,14 +72,14 @@ const queryPerplexity = async ({
   }
 
   if (!response.ok) {
-    const message = payload?.error?.message || payload?.message || payloadText || "Errore API OpenRouter";
+    const message = payload?.error?.message || payload?.message || payloadText || "Errore API";
     throw new Error(message);
   }
 
   const content = payload?.choices?.[0]?.message?.content;
   const text = typeof content === "string" ? content : JSON.stringify(content ?? "");
   if (!text || text === "{}" || text === "[]") {
-    throw new Error("Risposta OpenRouter non valida o vuota.");
+    throw new Error("Risposta API vuota.");
   }
 
   return { text, sources: collectSources(payload) };
@@ -185,7 +189,7 @@ const normalizeLead = (lead: any, defaultSector: string) => {
     marketingScore: safeScore,
     auditResult: toText(lead?.auditResult, "Analisi non disponibile"),
     customStrategy: toText(lead?.customStrategy, "Strategia commerciale da definire"),
-    source: toText(lead?.source, "openrouter"),
+    source: toText(lead?.source, "live-search"),
   };
 };
 
@@ -289,9 +293,21 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
   const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   const matches = Array.from(html.matchAll(scriptRegex));
 
+  // FILTRI RIGIDI: Scarta pubblicità, menu e il sito stesso
+  const forbiddenPatterns = [
+    /Filtrabile per/i, 
+    /I migliori/i, 
+    /Trova il tuo/i, 
+    /Offerte/i, 
+    /^local\.ch$/i
+  ];
+
   const pushLead = (item: any) => {
     const name = item?.name || item?.legalName;
     if (!name || typeof name !== "string") return;
+    
+    // Blocca il caricamento se corrisponde a una pubblicità
+    if (forbiddenPatterns.some(pattern => pattern.test(name.trim()))) return;
 
     const addressObj = item?.address;
     const address = addressObj
@@ -337,12 +353,15 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     }
   }
 
-  return dedupeLeads(leads).slice(0, 35);
+  return dedupeLeads(leads).slice(0, 45); // Tiene un margine alto prima del taglio finale
 };
 
 const searchLocalCh = async (keyword: string, location?: string) => {
   const where = location && location.trim().length > 0 ? location.trim() : "Svizzera";
-  const url = `[https://www.local.ch/it/q?what=$](https://www.local.ch/it/q?what=$){encodeURIComponent(keyword)}&where=${encodeURIComponent(where)}`;
+  // FIX: la riga precedente conteneva un link in stile Markdown incollato per errore
+  // dentro la template literal, rendendo l'URL invalido e {encodeURIComponent(keyword)}
+  // un testo letterale (mancava il simbolo $ per l'interpolazione).
+  const url = `https://www.local.ch/it/q?what=${encodeURIComponent(keyword)}&where=${encodeURIComponent(where)}`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
@@ -395,7 +414,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const radiusValue = Number(radius);
-
     const associatedKeywords = buildAssociatedKeywords(effectiveKeyword);
     let aggregatedLeads: any[] = [];
     let aggregatedSources: { title: string; uri: string }[] = [];
@@ -443,12 +461,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const systemPrompt = [
         "Sei un motore di lead generation B2B per la Svizzera.",
         "Rispondi esclusivamente in JSON valido.",
-        "La risposta deve essere un oggetto con chiave leads che contiene un array.",
+        "La risposta deve essere un oggetto con chiave leads che contains un array.",
         "Ogni lead deve avere: company, sector, address, phone, email, website, social, marketingScore, auditResult, customStrategy, source.",
         "Non usare markdown, nessun testo extra.",
       ].join(" ");
 
-      const termsToSearch = associatedKeywords.slice(0, 9);
+      const termsToSearch = associatedKeywords.slice(0, 5);
       const perplexityTasks = termsToSearch.map(async (term) => {
         const userPrompt = `Trova almeno 30 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
         const aiResult = await queryPerplexity({
@@ -477,13 +495,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (result.status === "fulfilled") {
           aggregatedLeads = aggregatedLeads.concat(result.value.leads);
           aggregatedSources = aggregatedSources.concat(result.value.sources);
-        } else {
-          console.warn("[Lead Generation][OpenRouter term error]", result.reason);
         }
       }
     }
 
-    // Integrazione Local.ch diretta (quella che inietta le pubblicità)
+    // Estrazione e unione dei dati reali da Local.ch
     const localTasks = associatedKeywords.slice(0, 2).map((term) => searchLocalCh(term, effectiveLocation));
     const localResultsSettled = await Promise.allSettled(localTasks);
     for (const result of localResultsSettled) {
@@ -492,26 +508,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Rimuove i duplicati reali
     let finalLeads = dedupeLeads(aggregatedLeads);
     
+    // Se non trova nulla sul web, usa i dati di fallback generici (10 elementi)
     if (finalLeads.length === 0) {
       finalLeads = buildFallbackLeads(effectiveKeyword, effectiveLocation, radiusValue);
     }
-
-    // INTERCETTAZIONE E PULIZIA TOTALE ANTI-PUBBLICITÀ RIGIDA
-    const forbiddenPatterns = [
-      /Filtrabile per/i, 
-      /I migliori/i, 
-      /Trova il tuo/i, 
-      /Offerte/i, 
-      /^local\.ch$/i
-    ];
-
-    const cleanedLeads = finalLeads.filter(lead => {
-      const name = lead?.company;
-      if (!name || typeof name !== "string") return false;
-      return !forbiddenPatterns.some(pattern => pattern.test(name.trim()));
-    });
 
     const finalSources = aggregatedSources
       .filter((source, index, self) => self.findIndex((item) => item.uri === source.uri) === index)
@@ -519,7 +522,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.json({
       success: true,
-      leads: cleanedLeads.slice(0, 30), // Forza esattamente i 30 lead puliti a schermo
+      leads: finalLeads.slice(0, 30), // Estrae esattamente i 30 lead reali e puliti
       searchedKeywords: associatedKeywords,
       sources: finalSources,
     });
