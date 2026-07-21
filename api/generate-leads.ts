@@ -304,19 +304,35 @@ const sanitizeWebsite = (value: any): string => {
   return raw;
 };
 
+const extractEmailsFromHtml = (html: string): string[] => {
+  const mailtoMatches = Array.from(html.matchAll(/mailto:([^"'\\\s<]+)/gi)).map((m) => m[1]);
+  const directMatches = html.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+
+  const candidates = [...mailtoMatches, ...directMatches]
+    .map((value) => String(value).replace(/[\\/,;]+$/g, "").trim())
+    .map((value) => sanitizeEmail(value))
+    .filter((value) => value !== "Non disponibile")
+    .filter((value) => !/localsearch\.ch$/i.test(value) && !/local\.ch$/i.test(value));
+
+  return Array.from(new Set(candidates));
+};
+
 const parseLocalChLeads = (html: string, keyword: string, location?: string) => {
   const leads: any[] = [];
   const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   const matches = Array.from(html.matchAll(scriptRegex));
+  const extractedEmails = extractEmailsFromHtml(html);
 
   // FILTRI RIGIDI: Scarta pubblicità, menu e il sito stesso
   const forbiddenPatterns = [
     /Filtrabile per/i, 
     /I migliori/i, 
+    /Migliori servizi/i,
     /Trova il tuo/i, 
     /Offerte/i, 
     /\blocal\.ch\b/i,
     /pubblicit|annuncio|sponsored|advert/i,
+    /[🔥⭐]/,
   ];
 
   const pushLead = (item: any) => {
@@ -370,7 +386,17 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     }
   }
 
-  return dedupeLeads(leads).slice(0, 45); // Tiene un margine alto prima del taglio finale
+  const deduped = dedupeLeads(leads);
+  let emailIndex = 0;
+  const enriched = deduped.map((lead) => {
+    if (lead.email && lead.email !== "Non disponibile") return lead;
+    const nextEmail = extractedEmails[emailIndex];
+    if (!nextEmail) return lead;
+    emailIndex += 1;
+    return { ...lead, email: nextEmail };
+  });
+
+  return enriched.slice(0, 45); // Tiene un margine alto prima del taglio finale
 };
 
 const searchLocalCh = async (keyword: string, location?: string) => {

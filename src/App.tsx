@@ -1119,12 +1119,6 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                                         <span>{lead.email}</span>
                                       </div>
                                     )}
-                                    {lead.website && lead.website !== "Non disponibile" && (
-                                      <div className="text-[10px] flex items-center gap-1 text-slate-400 font-sans break-all">
-                                        <Globe className="w-3 h-3 text-slate-400" />
-                                        <a href={lead.website} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-red-600 max-w-[140px] truncate">{lead.website}</a>
-                                      </div>
-                                    )}
                                   </td>
                                   <td className="p-4 text-center">
                                     <span className={`inline-flex px-2 py-1 rounded text-[11px] font-bold font-mono tracking-tight ${
