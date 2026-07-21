@@ -15,6 +15,22 @@ export interface LocalChResult {
   source: "local.ch";
 }
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const sanitizeEmail = (value?: string): string => {
+  if (!value) return "Non disponibile";
+  const raw = value.trim().replace(/^mailto:/i, "");
+  if (!raw || /^https?:\/\//i.test(raw) || raw.includes("/")) return "Non disponibile";
+  return emailRegex.test(raw) ? raw : "Non disponibile";
+};
+
+const sanitizeWebsite = (value?: string): string => {
+  if (!value) return "Non disponibile";
+  const raw = value.trim();
+  if (!raw || emailRegex.test(raw)) return "Non disponibile";
+  return raw;
+};
+
 /**
  * Ricerca aziende su local.ch
  * Simula una ricerca su local.ch e estrae i risultati
@@ -84,8 +100,8 @@ export async function combineLeadSourcesWithLocalCh(
         sector: localLead.sector,
         address: localLead.address,
         phone: localLead.phone || "Non disponibile",
-        email: localLead.email || "Non disponibile",
-        website: localLead.website || "Non disponibile",
+        email: sanitizeEmail(localLead.email),
+        website: sanitizeWebsite(localLead.website),
         social: "Non disponibile",
         marketingScore: 55,
         auditResult: `Trovato su local.ch, portale di ricerca locale svizzero. Rating: ${localLead.rating}/5`,

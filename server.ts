@@ -21,6 +21,22 @@ async function startServer() {
       .replace(/(^-|-$)/g, "");
   };
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const sanitizeEmail = (value: any): string => {
+    if (value === null || value === undefined) return "Non disponibile";
+    const raw = String(value).trim().replace(/^mailto:/i, "");
+    if (!raw || /^https?:\/\//i.test(raw) || raw.includes("/")) return "Non disponibile";
+    return emailRegex.test(raw) ? raw : "Non disponibile";
+  };
+
+  const sanitizeWebsite = (value: any): string => {
+    if (value === null || value === undefined) return "Non disponibile";
+    const raw = String(value).trim();
+    if (!raw || emailRegex.test(raw)) return "Non disponibile";
+    return raw;
+  };
+
   const buildFallbackLeads = (keyword: string, location?: string, radius?: number) => {
     const city = (location || "Svizzera").trim();
     const base = keyword.trim();
@@ -149,8 +165,8 @@ async function startServer() {
       sector: toText(lead?.sector, defaultSector),
       address: toText(lead?.address),
       phone: toText(lead?.phone),
-      email: toText(lead?.email),
-      website: toText(lead?.website),
+      email: sanitizeEmail(lead?.email),
+      website: sanitizeWebsite(lead?.website),
       social: toText(lead?.social),
       marketingScore: safeScore,
       auditResult: toText(lead?.auditResult, "Analisi non disponibile"),
@@ -363,7 +379,8 @@ async function startServer() {
         /I migliori/i, 
         /Trova il tuo/i, 
         /Offerte/i, 
-        /^local\.ch$/i // Intercetta ed elimina esattamente il record "local.ch"
+        /\blocal\.ch\b/i,
+        /pubblicit|annuncio|sponsored|advert/i
       ];
 
       const cleanedLeads = finalLeads.filter(lead => {

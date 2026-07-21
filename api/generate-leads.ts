@@ -183,8 +183,8 @@ const normalizeLead = (lead: any, defaultSector: string) => {
     sector: toText(lead?.sector, defaultSector),
     address: toText(lead?.address),
     phone: toText(lead?.phone),
-    email: toText(lead?.email),
-    website: toText(lead?.website),
+    email: sanitizeEmail(lead?.email),
+    website: sanitizeWebsite(lead?.website),
     social: toText(lead?.social),
     marketingScore: safeScore,
     auditResult: toText(lead?.auditResult, "Analisi non disponibile"),
@@ -288,6 +288,22 @@ const parseCompactSearchInput = (rawKeyword: string, rawLocation?: string) => {
   };
 };
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const sanitizeEmail = (value: any): string => {
+  if (value === null || value === undefined) return "Non disponibile";
+  const raw = String(value).trim().replace(/^mailto:/i, "");
+  if (!raw || /^https?:\/\//i.test(raw) || raw.includes("/")) return "Non disponibile";
+  return emailRegex.test(raw) ? raw : "Non disponibile";
+};
+
+const sanitizeWebsite = (value: any): string => {
+  if (value === null || value === undefined) return "Non disponibile";
+  const raw = String(value).trim();
+  if (!raw || emailRegex.test(raw)) return "Non disponibile";
+  return raw;
+};
+
 const parseLocalChLeads = (html: string, keyword: string, location?: string) => {
   const leads: any[] = [];
   const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -299,7 +315,8 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     /I migliori/i, 
     /Trova il tuo/i, 
     /Offerte/i, 
-    /^local\.ch$/i
+    /\blocal\.ch\b/i,
+    /pubblicit|annuncio|sponsored|advert/i,
   ];
 
   const pushLead = (item: any) => {
@@ -321,8 +338,8 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
       sector: keyword,
       address,
       phone: item?.telephone || "Non disponibile",
-      email: item?.email || "Non disponibile",
-      website: item?.url || "Non disponibile",
+      email: sanitizeEmail(item?.email),
+      website: sanitizeWebsite(item?.url),
       social: "Non disponibile",
       marketingScore: 58,
       auditResult: "Lead individuato da local.ch",
