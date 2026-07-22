@@ -1,4 +1,6 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { hasGoogleMapsKey, searchGoogleMapsPlaces } from "./google-maps";
+import { LOCAL_CH_POPULAR_CATEGORIES } from "./local-ch-categories";
 
 // Accetta sia la chiave OpenRouter che Perplexity per non andare in blocco
 const hasPerplexityKey = (): boolean => Boolean(process.env.OPENROUTER_API_KEY || process.env.PERPLEXITY_API_KEY);
@@ -138,6 +140,8 @@ const slugToLabel = (value: string): string => {
     .replace(/\s+/g, " ")
     .trim();
 };
+
+const stripCategoryQualifier = (value: string): string => value.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
 
 const categoryFromDetailUrl = (value?: string): string => {
   if (!value) return "";
@@ -345,6 +349,38 @@ const buildAssociatedKeywords = (keyword: string): string[] => {
     }
   }
 
+  const queryTokens = normalized.split(" ").filter((token) => token.length >= 4);
+  const matchedCatalogCategories = LOCAL_CH_POPULAR_CATEGORIES
+    .map((label) => {
+      const normalizedLabel = normalizeSearchTerm(stripCategoryQualifier(label));
+      const labelTokens = normalizedLabel.split(" ").filter((token) => token.length >= 4);
+      let score = 0;
+
+      if (normalizedLabel === normalized) score += 100;
+      if (normalizedLabel.includes(normalized) || normalized.includes(normalizedLabel)) score += 50;
+
+      for (const token of queryTokens) {
+        if (labelTokens.includes(token)) {
+          score += 18;
+          continue;
+        }
+
+        if (labelTokens.some((labelToken) => labelToken.startsWith(token) || token.startsWith(labelToken))) {
+          score += 10;
+        }
+      }
+
+      return { label, score };
+    })
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 6);
+
+  for (const item of matchedCatalogCategories) {
+    pushTerm(item.label);
+    pushTerm(stripCategoryQualifier(item.label));
+  }
+
   [
     `servizi ${original}`,
     `${original} professionale`,
@@ -412,6 +448,11 @@ const sanitizeWebsite = (value: any): string => {
   return raw;
 };
 
+const extractHttpUrlsFromHtml = (html: string): string[] => {
+  const matches = Array.from(html.matchAll(/href="(https?:\/\/[^"]+)"/gi)).map((match) => match[1]);
+  return Array.from(new Set(matches));
+};
+
 const extractEmailsFromHtml = (html: string): string[] => {
   const mailtoMatches = Array.from(html.matchAll(/mailto:([^"'\\\s<]+)/gi)).map((m) => m[1]);
   const directMatches = html.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
@@ -423,6 +464,111 @@ const extractEmailsFromHtml = (html: string): string[] => {
     .filter((value) => !/localsearch\.ch$/i.test(value) && !/local\.ch$/i.test(value));
 
   return Array.from(new Set(candidates));
+};
+
+const fetchHtmlPage = async (url: string, timeoutMs = 6000): Promise<string | null> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) {
+      return null;
+    }
+
+    return await response.text();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const toAbsoluteUrl = (baseUrl: string, candidate: string): string | null => {
+  try {
+    return new URL(candidate, baseUrl).toString();
+  } catch {
+    return null;
+  }
+};
+
+const discoverContactPages = (html: string, websiteUrl: string): string[] => {
+  const contactPatterns = /(contact|contatt|kontakt|impressum|chi-siamo|about|support|team)/i;
+  const allUrls = extractHttpUrlsFromHtml(html);
+  const urlsFromAnchors = Array.from(html.matchAll(/href="([^"]+)"/gi))
+    .map((match) => toAbsoluteUrl(websiteUrl, match[1]))
+    .filter((value): value is string => Boolean(value));
+
+  return Array.from(new Set([...allUrls, ...urlsFromAnchors]))
+    .filter((value) => value.startsWith(new URL(websiteUrl).origin))
+    .filter((value) => contactPatterns.test(value))
+    .slice(0, 3);
+};
+
+const enrichLeadsFromWebsiteContacts = async (leads: any[]) => {
+  const enriched = [...leads];
+  const targets = enriched
+    .map((lead, index) => ({ lead, index }))
+    .filter(({ lead }) =>
+      lead?.website &&
+      lead.website !== "Non disponibile" &&
+      lead.email === "Non disponibile" &&
+      !isLocalChUrl(lead.website) &&
+      !isLocalSearchUrl(lead.website)
+    )
+    .slice(0, 10);
+
+  const results = await Promise.allSettled(
+    targets.map(async ({ lead, index }) => {
+      const homepageHtml = await fetchHtmlPage(lead.website);
+      if (!homepageHtml) {
+        return { index, email: "Non disponibile" };
+      }
+
+      const homepageEmails = extractEmailsFromHtml(homepageHtml);
+      if (homepageEmails.length > 0) {
+        return { index, email: homepageEmails[0] };
+      }
+
+      const contactPages = discoverContactPages(homepageHtml, lead.website);
+      for (const contactPage of contactPages) {
+        const contactHtml = await fetchHtmlPage(contactPage, 5000);
+        if (!contactHtml) continue;
+        const contactEmails = extractEmailsFromHtml(contactHtml);
+        if (contactEmails.length > 0) {
+          return { index, email: contactEmails[0] };
+        }
+      }
+
+      return { index, email: "Non disponibile" };
+    }),
+  );
+
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    const current = enriched[result.value.index];
+    if (!current || result.value.email === "Non disponibile") continue;
+    enriched[result.value.index] = {
+      ...current,
+      email: result.value.email,
+    };
+  }
+
+  return enriched;
 };
 
 const extractOfficialWebsitesFromHtml = (html: string): string[] => {
@@ -683,6 +829,7 @@ const scoreLeadQuality = (lead: any): number => {
   if (lead?.email && lead.email !== "Non disponibile") score += 3;
   if (lead?.website && lead.website !== "Non disponibile") score += 2;
   if (lead?.phone && lead.phone !== "Non disponibile") score += 1;
+  if (lead?.source === "google-maps") score += 2;
   if (lead?.source === "local.ch") score += 1;
   return score;
 };
@@ -834,6 +981,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let aggregatedLeads: any[] = [];
     let aggregatedSources: { title: string; uri: string }[] = [];
 
+    if (hasGoogleMapsKey()) {
+      const googleTerms = associatedKeywords.slice(0, 4);
+      const googleResults = await Promise.allSettled(
+        googleTerms.map((term) => searchGoogleMapsPlaces(term, effectiveLocation, radiusValue)),
+      );
+
+      for (const result of googleResults) {
+        if (result.status !== "fulfilled") continue;
+        aggregatedLeads = aggregatedLeads.concat(
+          result.value.map((lead) =>
+            normalizeLead(
+              {
+                ...lead,
+                email: "Non disponibile",
+                detailUrl: lead.googleMapsUrl,
+                auditResult: "Lead individuato tramite Google Maps Places.",
+                customStrategy: "Contatto commerciale locale basato sulla scheda Google Maps e sulla presenza digitale.",
+              },
+              effectiveKeyword,
+            ),
+          ),
+        );
+      }
+    }
+
     if (hasPerplexityKey()) {
       const leadSchema = {
         type: "object",
@@ -947,6 +1119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let finalLeads = dedupeLeads(aggregatedLeads);
     finalLeads = await enrichLocalChLeads(finalLeads);
+    finalLeads = await enrichLeadsFromWebsiteContacts(finalLeads);
     finalLeads = dedupeLeads(finalLeads)
       .sort((left, right) => scoreLeadQuality(right) - scoreLeadQuality(left) || left.company.localeCompare(right.company));
 
