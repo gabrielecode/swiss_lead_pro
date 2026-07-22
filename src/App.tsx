@@ -103,7 +103,9 @@ export default function App() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [leadsProgress, setLeadsProgress] = useState<string>("");
   const [leadsError, setLeadsError] = useState<string | null>(null);
+  const [leadsNotice, setLeadsNotice] = useState<string | null>(null);
   const [leadsSources, setLeadsSources] = useState<{ title: string; uri: string }[]>([]);
+  const [searchedLeadTerms, setSearchedLeadTerms] = useState<string[]>([]);
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
   
   // Scanning Radius for Swiss Business Crawler
@@ -192,8 +194,13 @@ export default function App() {
     const effectiveLocation = parsedInput.location;
 
     setIsLoadingLeads(true);
+    setLeads([]);
     setLeadsError(null);
+    setLeadsNotice(null);
     setLeadsSources([]);
+    setSearchedLeadTerms([]);
+    setSelectedLeadForEmail(null);
+    setGeneratedProposal(null);
     
     // Nice status sequence
     setLeadsProgress("Inizializzazione mappatura Google Maps per aziende nel settore " + effectiveKeyword + "...");
@@ -253,13 +260,16 @@ export default function App() {
 
       const data = await response.json();
       if (data.success) {
-        // Add random uuid / ID to results
-        const mappedLeads = data.leads.map((l: any, idx: number) => ({
+        const rawLeads = Array.isArray(data.leads) ? data.leads : [];
+        const mappedLeads = rawLeads.map((l: any, idx: number) => ({
           ...l,
           id: String(Date.now()) + "-" + idx
         }));
         setLeads(mappedLeads);
         setLeadsSources(data.sources || []);
+        setSearchedLeadTerms(Array.isArray(data.searchedKeywords) ? data.searchedKeywords : []);
+        setLeadsNotice(data.message || null);
+        setSelectedLeadForEmail(mappedLeads[0] || null);
       } else {
         setLeadsError(data.error || "Errore sconosciuto durante l'acquisizione.");
       }
@@ -961,6 +971,29 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                   </div>
                 )}
 
+                {leadsNotice && (
+                  <div className="bg-sky-50 border border-sky-200 text-sky-800 text-xs p-4 rounded-xl flex items-start gap-2.5">
+                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>{leadsNotice}</div>
+                  </div>
+                )}
+
+                {searchedLeadTerms.length > 0 && (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Keyword associate e long-tail usate</span>
+                    <div className="flex flex-wrap gap-2">
+                      {searchedLeadTerms.map((term) => (
+                        <span
+                          key={term}
+                          className="inline-flex items-center rounded-full border border-red-100 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700"
+                        >
+                          {term}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* TWO COLUMN GRID WORKSPACE */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   
@@ -1026,9 +1059,9 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                                   </span>
                                 )}
                                 {lead.email && lead.email !== "Non disponibile" && (
-                                  <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-1 rounded-md max-w-full">
+                                  <span className="inline-flex max-w-full items-start gap-1 text-red-700 bg-red-50 px-2 py-1 rounded-md">
                                     <Mail className="w-3 h-3 shrink-0" />
-                                    <span className="truncate">{lead.email}</span>
+                                    <span className="break-all whitespace-normal leading-tight">{lead.email}</span>
                                   </span>
                                 )}
                               </div>
@@ -1175,7 +1208,7 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                       <div className="text-center py-10 px-4 text-slate-400 italic">
                         <Target className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                         <p className="text-xs leading-relaxed">
-                          Nessun lead selezionato. Fai click su una riga della tabella a sinistra per caricarla in sessione e generare un'e-mail a freddo personalizzata.
+                          Nessun lead selezionato. Tocca o fai click su una riga della tabella a sinistra per caricarla in sessione e generare un'e-mail a freddo personalizzata.
                         </p>
                       </div>
                     ) : (
@@ -1186,6 +1219,44 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                           <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-mono inline-block mt-1">
                             {selectedLeadForEmail.sector}
                           </span>
+                        </div>
+
+                        <div className="bg-white border border-slate-200 rounded-xl p-3 text-xs space-y-2">
+                          {selectedLeadForEmail.email && selectedLeadForEmail.email !== "Non disponibile" && (
+                            <div className="flex items-start gap-2">
+                              <Mail className="mt-0.5 w-3.5 h-3.5 shrink-0 text-red-500" />
+                              <a
+                                href={`mailto:${selectedLeadForEmail.email}`}
+                                className="break-all text-red-700 hover:underline"
+                              >
+                                {selectedLeadForEmail.email}
+                              </a>
+                            </div>
+                          )}
+                          {selectedLeadForEmail.phone && selectedLeadForEmail.phone !== "Non disponibile" && (
+                            <div className="flex items-start gap-2">
+                              <Phone className="mt-0.5 w-3.5 h-3.5 shrink-0 text-slate-500" />
+                              <a
+                                href={`tel:${selectedLeadForEmail.phone}`}
+                                className="break-all text-slate-700 hover:underline"
+                              >
+                                {selectedLeadForEmail.phone}
+                              </a>
+                            </div>
+                          )}
+                          {selectedLeadForEmail.website && selectedLeadForEmail.website !== "Non disponibile" && (
+                            <div className="flex items-start gap-2">
+                              <Globe className="mt-0.5 w-3.5 h-3.5 shrink-0 text-slate-500" />
+                              <a
+                                href={selectedLeadForEmail.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="break-all text-slate-700 hover:text-red-600 hover:underline"
+                              >
+                                {selectedLeadForEmail.website}
+                              </a>
+                            </div>
+                          )}
                         </div>
 
                         {/* Audit summary panel */}

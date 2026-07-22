@@ -94,6 +94,57 @@ const normalizeSlug = (value: string): string => {
     .replace(/(^-|-$)/g, "");
 };
 
+const normalizeSearchTerm = (value: string): string => {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const isLocalChUrl = (value: string): boolean => /https?:\/\/(?:www\.)?local\.ch\//i.test(value);
+const isLocalSearchUrl = (value: string): boolean => /https?:\/\/(?:www\.)?localsearch\.ch\//i.test(value);
+
+const decodeHtmlEntities = (value: string): string => {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/gi, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+};
+
+const cleanHtmlText = (value: string): string => {
+  return decodeHtmlEntities(String(value || ""))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const splitLocalChCategories = (value: string): string[] => {
+  return cleanHtmlText(value)
+    .split(/[•|,/]| - /g)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter((part) => part.length >= 3);
+};
+
+const slugToLabel = (value: string): string => {
+  return decodeHtmlEntities(value)
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const categoryFromDetailUrl = (value?: string): string => {
+  if (!value) return "";
+  const match = value.match(/\/it\/d\/[^/]+\/\d+\/([^/]+)\//i);
+  return match ? slugToLabel(match[1]) : "";
+};
+
 const buildFallbackLeads = (keyword: string, location?: string, radius?: number) => {
   const city = (location || "Svizzera").trim();
   const base = keyword.trim();
@@ -190,6 +241,10 @@ const normalizeLead = (lead: any, defaultSector: string) => {
     auditResult: toText(lead?.auditResult, "Analisi non disponibile"),
     customStrategy: toText(lead?.customStrategy, "Strategia commerciale da definire"),
     source: toText(lead?.source, "live-search"),
+    detailUrl: typeof lead?.detailUrl === "string" ? lead.detailUrl.trim() : undefined,
+    categories: Array.isArray(lead?.categories)
+      ? lead.categories.map((item: any) => String(item).trim()).filter((item: string) => item.length > 0)
+      : undefined,
   };
 };
 
@@ -210,8 +265,21 @@ const dedupeLeads = (leads: any[]) => {
 };
 
 const buildAssociatedKeywords = (keyword: string): string[] => {
-  const normalized = keyword.toLowerCase().trim();
-  const terms = new Set<string>([keyword.trim()]);
+  const original = keyword.trim();
+  const normalized = normalizeSearchTerm(original);
+  const seen = new Set<string>();
+  const terms: string[] = [];
+
+  const pushTerm = (value?: string) => {
+    const cleaned = String(value || "").replace(/\s+/g, " ").trim();
+    if (cleaned.length < 3) return;
+    const normalizedValue = normalizeSearchTerm(cleaned);
+    if (!normalizedValue || seen.has(normalizedValue)) return;
+    seen.add(normalizedValue);
+    terms.push(cleaned);
+  };
+
+  pushTerm(original);
 
   const domainMap: Array<{ match: RegExp; synonyms: string[] }> = [
     {
@@ -238,22 +306,62 @@ const buildAssociatedKeywords = (keyword: string): string[] => {
       match: /(avvocat|legale|studio legale)/i,
       synonyms: ["studio legale", "avvocato", "consulenza legale"],
     },
+    {
+      match: /(event|organizz|matrimon|riceviment|party|festa|congress|catering|banquet|cerimoni)/i,
+      synonyms: [
+        "organizzazione eventi",
+        "event planner",
+        "location eventi",
+        "sale per eventi",
+        "ricevimenti",
+        "wedding planner",
+        "catering eventi",
+      ],
+    },
+    {
+      match: /(ball|danz|sala da ballo|scuola di ballo)/i,
+      synonyms: [
+        "sala da ballo",
+        "scuola di ballo",
+        "accademia di danza",
+        "organizzazione eventi",
+        "location eventi",
+      ],
+    },
+    {
+      match: /(ristor|trattor|oster|pizzer|bar|lounge)/i,
+      synonyms: [
+        "ristorante",
+        "sala eventi",
+        "ristorante per eventi",
+        "location per feste",
+      ],
+    },
   ];
 
   for (const rule of domainMap) {
     if (rule.match.test(normalized)) {
-      for (const synonym of rule.synonyms) {
-        terms.add(synonym);
-      }
+      rule.synonyms.forEach(pushTerm);
     }
   }
 
-  if (terms.size === 1) {
-    terms.add(`studio ${keyword}`);
-    terms.add(`${keyword} professionale`);
+  [
+    `servizi ${original}`,
+    `${original} professionale`,
+    `${original} aziende`,
+    `${original} svizzera`,
+  ].forEach(pushTerm);
+
+  if (terms.length < 5) {
+    [
+      `studio ${original}`,
+      `agenzia ${original}`,
+      `attivita ${original}`,
+      `${original} premium`,
+    ].forEach(pushTerm);
   }
 
-  return Array.from(terms).slice(0, 5);
+  return terms.slice(0, 8);
 };
 
 const parseCompactSearchInput = (rawKeyword: string, rawLocation?: string) => {
@@ -300,7 +408,7 @@ const sanitizeEmail = (value: any): string => {
 const sanitizeWebsite = (value: any): string => {
   if (value === null || value === undefined) return "Non disponibile";
   const raw = String(value).trim();
-  if (!raw || emailRegex.test(raw)) return "Non disponibile";
+  if (!raw || emailRegex.test(raw) || isLocalChUrl(raw) || isLocalSearchUrl(raw)) return "Non disponibile";
   return raw;
 };
 
@@ -315,6 +423,268 @@ const extractEmailsFromHtml = (html: string): string[] => {
     .filter((value) => !/localsearch\.ch$/i.test(value) && !/local\.ch$/i.test(value));
 
   return Array.from(new Set(candidates));
+};
+
+const extractOfficialWebsitesFromHtml = (html: string): string[] => {
+  const websiteLabelIndex = html.toLowerCase().indexOf("sito web");
+  const websiteSnippet = websiteLabelIndex >= 0 ? html.slice(websiteLabelIndex, websiteLabelIndex + 3000) : html;
+  const websiteMatches = Array.from(websiteSnippet.matchAll(/href="(https?:\/\/[^"]+)"/gi))
+    .map((match) => sanitizeWebsite(match[1]))
+    .filter((value) => value !== "Non disponibile");
+
+  return Array.from(new Set(websiteMatches));
+};
+
+const extractContactGroupBlock = (html: string, label: string): string => {
+  const labelIndex = html.toLowerCase().indexOf(label.toLowerCase());
+  if (labelIndex < 0) return "";
+
+  const windowStart = Math.max(0, labelIndex - 200);
+  const windowEnd = Math.min(html.length, labelIndex + 2500);
+  return html.slice(windowStart, windowEnd);
+};
+
+const extractPhonesFromHtml = (html: string): string[] => {
+  const phoneMatches = Array.from(html.matchAll(/href="tel:([^"]+)"/gi))
+    .map((match) => cleanHtmlText(match[1]))
+    .filter(Boolean);
+
+  return Array.from(new Set(phoneMatches));
+};
+
+const extractLocalChStructuredBusiness = (html: string) => {
+  const matches = Array.from(html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi));
+  const queue: any[] = [];
+
+  for (const match of matches) {
+    const payload = match[1]?.trim();
+    if (!payload) continue;
+    try {
+      queue.push(JSON.parse(payload));
+    } catch {
+      continue;
+    }
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+    if (typeof current !== "object") continue;
+    if (Array.isArray(current["@graph"])) {
+      queue.push(...current["@graph"]);
+    }
+
+    const types = Array.isArray(current["@type"]) ? current["@type"] : [current["@type"]];
+    if (types.some((type) => typeof type === "string" && /localbusiness|organization/i.test(type))) {
+      return current;
+    }
+  }
+
+  return null;
+};
+
+const extractLocalChContactDetails = async (profileUrl: string) => {
+  if (!isLocalChUrl(profileUrl)) {
+    return {
+      email: "Non disponibile",
+      website: "Non disponibile",
+      phone: "Non disponibile",
+      address: "Non disponibile",
+      sector: "",
+      categories: [] as string[],
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const response = await fetch(profileUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return { email: "Non disponibile", website: "Non disponibile" };
+    }
+
+    const html = await response.text();
+    const structured = extractLocalChStructuredBusiness(html);
+    const emails = extractEmailsFromHtml(html);
+    const emailBlock = extractContactGroupBlock(html, "E-mail");
+    const websiteBlock = extractContactGroupBlock(html, "Sito web");
+    const phoneBlock = extractContactGroupBlock(html, "Telefono");
+    const websites = extractOfficialWebsitesFromHtml(websiteBlock || html);
+    const phones = extractPhonesFromHtml(phoneBlock || html);
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const titleText = cleanHtmlText(titleMatch?.[1] || "");
+    const sectorFromTitleMatch = titleText.match(/^[^-]+-\s*(.+?)\s+a\s+.+?\|\s*local\.ch$/i);
+    const structuredAddress = structured?.address
+      ? [
+          structured.address.streetAddress,
+          structured.address.postalCode,
+          structured.address.addressLocality,
+          structured.address.addressCountry,
+        ].filter(Boolean).join(", ")
+      : "";
+    const structuredCategories = Array.from(new Set([
+      ...splitLocalChCategories(sectorFromTitleMatch?.[1] || ""),
+      ...splitLocalChCategories(categoryFromDetailUrl(profileUrl)),
+    ]));
+
+    return {
+      email: emails[0] || "Non disponibile",
+      website: sanitizeWebsite(structured?.sameAs || structured?.url) !== "Non disponibile"
+        ? sanitizeWebsite(structured?.sameAs || structured?.url)
+        : websites[0] || "Non disponibile",
+      phone: structured?.telephone || phones[0] || "Non disponibile",
+      address: structuredAddress || "Non disponibile",
+      sector: sectorFromTitleMatch?.[1] || categoryFromDetailUrl(profileUrl),
+      categories: structuredCategories,
+    };
+  } catch {
+    return {
+      email: "Non disponibile",
+      website: "Non disponibile",
+      phone: "Non disponibile",
+      address: "Non disponibile",
+      sector: "",
+      categories: [] as string[],
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const enrichLocalChLeads = async (leads: any[]) => {
+  const enriched = [...leads];
+  const targets = enriched
+    .map((lead, index) => ({ lead, index }))
+    .filter(({ lead }) =>
+      lead?.source === "local.ch" &&
+      typeof lead?.detailUrl === "string" &&
+      lead.detailUrl.length > 0 &&
+      (
+        lead.email === "Non disponibile" ||
+        lead.website === "Non disponibile" ||
+        lead.phone === "Non disponibile" ||
+        lead.address === "Non disponibile"
+      )
+    )
+    .slice(0, 18);
+
+  const results = await Promise.allSettled(
+    targets.map(async ({ lead, index }) => ({
+      index,
+      details: await extractLocalChContactDetails(lead.detailUrl),
+    })),
+  );
+
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    const current = enriched[result.value.index];
+    if (!current) continue;
+
+    const { email, website, phone, address, sector, categories } = result.value.details;
+    enriched[result.value.index] = {
+      ...current,
+      email: current.email !== "Non disponibile" ? current.email : email,
+      website: current.website !== "Non disponibile" ? current.website : website,
+      phone: current.phone !== "Non disponibile" ? current.phone : phone,
+      address: current.address !== "Non disponibile" ? current.address : address,
+      sector: current.sector && current.sector !== "Non disponibile" && current.sector !== current.source ? current.sector : (sector || current.sector),
+      categories: Array.from(new Set([...(current.categories || []), ...(categories || [])])),
+    };
+  }
+
+  return enriched;
+};
+
+const deriveLocalChAssociatedKeywords = (leads: any[], seedTerms: string[]) => {
+  const seen = new Set(seedTerms.map((term) => normalizeSearchTerm(term)));
+  const discovered: string[] = [];
+  const pushTerm = (value?: string) => {
+    const cleaned = String(value || "").replace(/\s+/g, " ").trim();
+    const normalized = normalizeSearchTerm(cleaned);
+    if (cleaned.length < 3 || !normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    discovered.push(cleaned);
+  };
+
+  for (const lead of leads) {
+    splitLocalChCategories(lead?.sector || "").forEach(pushTerm);
+    splitLocalChCategories(categoryFromDetailUrl(lead?.detailUrl)).forEach(pushTerm);
+    if (Array.isArray(lead?.categories)) {
+      lead.categories.forEach(pushTerm);
+    }
+  }
+
+  return discovered.slice(0, 6);
+};
+
+const parseLocalChHtmlCards = (html: string, keyword: string, location?: string) => {
+  const results = new Map<string, any>();
+  const cardRegex = /href="(\/it\/d\/[^"]+)"[\s\S]{0,800}?<h2[^>]*>([^<]+)<\/h2>[\s\S]{0,300}?<span[^>]*>([^<]+)<\/span>/gi;
+  const forbiddenPatterns = [
+    /Filtrabile per/i,
+    /I migliori/i,
+    /Migliori servizi/i,
+    /Trova il tuo/i,
+    /Offerte/i,
+    /\blocal\.ch\b/i,
+    /pubblicit|annuncio|sponsored|advert/i,
+    /[🔥⭐]/,
+  ];
+  let match: RegExpExecArray | null;
+
+  while ((match = cardRegex.exec(html))) {
+    const detailUrl = `https://www.local.ch${match[1]}`;
+    const company = cleanHtmlText(match[2]);
+    const categoryLabel = cleanHtmlText(match[3]);
+    const categories = splitLocalChCategories(categoryLabel);
+    const sector = categories[0] || categoryFromDetailUrl(detailUrl) || keyword;
+
+    if (!company || forbiddenPatterns.some((pattern) => pattern.test(company))) {
+      continue;
+    }
+
+    if (!results.has(detailUrl)) {
+      results.set(detailUrl, {
+        company,
+        sector,
+        address: `${location || "Svizzera"}, Svizzera`,
+        phone: "Non disponibile",
+        email: "Non disponibile",
+        website: "Non disponibile",
+        social: "Non disponibile",
+        marketingScore: 58,
+        auditResult: `Lead individuato da local.ch nella categoria ${sector}.`,
+        customStrategy: "Contatto commerciale locale con focus geolocalizzato.",
+        source: "local.ch",
+        detailUrl,
+        categories,
+      });
+    }
+  }
+
+  return Array.from(results.values());
+};
+
+const scoreLeadQuality = (lead: any): number => {
+  let score = 0;
+  if (lead?.email && lead.email !== "Non disponibile") score += 3;
+  if (lead?.website && lead.website !== "Non disponibile") score += 2;
+  if (lead?.phone && lead.phone !== "Non disponibile") score += 1;
+  if (lead?.source === "local.ch") score += 1;
+  return score;
 };
 
 const parseLocalChLeads = (html: string, keyword: string, location?: string) => {
@@ -361,6 +731,8 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
       auditResult: "Lead individuato da local.ch",
       customStrategy: "Contatto commerciale locale con focus geolocalizzato.",
       source: "local.ch",
+      detailUrl: typeof item?.url === "string" ? item.url : undefined,
+      categories: splitLocalChCategories(categoryFromDetailUrl(typeof item?.url === "string" ? item.url : "")),
     });
   };
 
@@ -386,17 +758,17 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     }
   }
 
-  const deduped = dedupeLeads(leads);
-  let emailIndex = 0;
-  const enriched = deduped.map((lead) => {
+  const htmlCardLeads = parseLocalChHtmlCards(html, keyword, location);
+  const deduped = dedupeLeads(leads.concat(htmlCardLeads));
+  return deduped.map((lead) => {
     if (lead.email && lead.email !== "Non disponibile") return lead;
-    const nextEmail = extractedEmails[emailIndex];
-    if (!nextEmail) return lead;
-    emailIndex += 1;
-    return { ...lead, email: nextEmail };
-  });
-
-  return enriched.slice(0, 45); // Tiene un margine alto prima del taglio finale
+    const matchingEmail = extractedEmails.find((email) => {
+      const domain = email.split("@")[1] || "";
+      const companySlug = normalizeSlug(lead.company || "");
+      return companySlug.length > 0 && domain.replace(/\.[^.]+$/, "").includes(companySlug.slice(0, 6));
+    });
+    return matchingEmail ? { ...lead, email: matchingEmail } : lead;
+  }).slice(0, 45);
 };
 
 const searchLocalCh = async (keyword: string, location?: string) => {
@@ -458,6 +830,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const radiusValue = Number(radius);
     const associatedKeywords = buildAssociatedKeywords(effectiveKeyword);
+    const searchedKeywords = [...associatedKeywords];
     let aggregatedLeads: any[] = [];
     let aggregatedSources: { title: string; uri: string }[] = [];
 
@@ -506,10 +879,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "Rispondi esclusivamente in JSON valido.",
         "La risposta deve essere un oggetto con chiave leads che contains un array.",
         "Ogni lead deve avere: company, sector, address, phone, email, website, social, marketingScore, auditResult, customStrategy, source.",
+        "Usa solo aziende reali e pertinenti alla localita richiesta.",
+        "Non inventare email, siti web, telefoni o indirizzi: se non verificabili usa 'Non disponibile'.",
         "Non usare markdown, nessun testo extra.",
       ].join(" ");
 
-      const termsToSearch = associatedKeywords.slice(0, 5);
+      const termsToSearch = associatedKeywords.slice(0, 6);
       const perplexityTasks = termsToSearch.map(async (term) => {
         const userPrompt = `Trova almeno 30 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
         const aiResult = await queryPerplexity({
@@ -543,21 +918,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Estrazione e unione dei dati reali da Local.ch
-    const localTasks = associatedKeywords.slice(0, 2).map((term) => searchLocalCh(term, effectiveLocation));
-    const localResultsSettled = await Promise.allSettled(localTasks);
-    for (const result of localResultsSettled) {
-      if (result.status === "fulfilled" && result.value.length > 0) {
-        aggregatedLeads = aggregatedLeads.concat(result.value.map((lead) => normalizeLead(lead, effectiveKeyword)));
+    const runLocalChBatch = async (terms: string[]) => {
+      const localResultsSettled = await Promise.allSettled(terms.map((term) => searchLocalCh(term, effectiveLocation)));
+      const collected: any[] = [];
+      for (const result of localResultsSettled) {
+        if (result.status === "fulfilled" && result.value.length > 0) {
+          collected.push(...result.value);
+        }
       }
+      return collected;
+    };
+
+    const initialLocalTerms = associatedKeywords.slice(0, 4);
+    let localLeads = await runLocalChBatch(initialLocalTerms);
+    const discoveredCategoryTerms = deriveLocalChAssociatedKeywords(localLeads, searchedKeywords);
+
+    for (const term of discoveredCategoryTerms) {
+      searchedKeywords.push(term);
     }
 
-    // Rimuove i duplicati reali
-    let finalLeads = dedupeLeads(aggregatedLeads);
-    
-    // Se non trova nulla sul web, usa i dati di fallback generici (10 elementi)
-    if (finalLeads.length === 0) {
-      finalLeads = buildFallbackLeads(effectiveKeyword, effectiveLocation, radiusValue);
+    if (discoveredCategoryTerms.length > 0) {
+      localLeads = localLeads.concat(await runLocalChBatch(discoveredCategoryTerms));
     }
+
+    for (const lead of localLeads.map((lead) => normalizeLead(lead, effectiveKeyword))) {
+      aggregatedLeads.push(lead);
+    }
+
+    let finalLeads = dedupeLeads(aggregatedLeads);
+    finalLeads = await enrichLocalChLeads(finalLeads);
+    finalLeads = dedupeLeads(finalLeads)
+      .sort((left, right) => scoreLeadQuality(right) - scoreLeadQuality(left) || left.company.localeCompare(right.company));
 
     const finalSources = aggregatedSources
       .filter((source, index, self) => self.findIndex((item) => item.uri === source.uri) === index)
@@ -565,9 +956,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.json({
       success: true,
-      leads: finalLeads.slice(0, 30), // Estrae esattamente i 30 lead reali e puliti
-      searchedKeywords: associatedKeywords,
+      leads: finalLeads.slice(0, 30),
+      searchedKeywords: Array.from(new Set(searchedKeywords)),
       sources: finalSources,
+      message: finalLeads.length === 0
+        ? `Nessun lead verificato trovato per "${effectiveKeyword}"${effectiveLocation ? ` a ${effectiveLocation}` : ""}. Prova con una localita piu precisa o un termine correlato.`
+        : undefined,
     });
 
   } catch (error: any) {
