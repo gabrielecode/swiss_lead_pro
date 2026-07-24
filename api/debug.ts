@@ -38,9 +38,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const nameMatches = body.match(/"name":"([^"]{3,60})"/g) || [];
     const sampleNames = nameMatches.slice(0, 5).map((s: string) => s.replace(/"name":"/, "").replace(/"$/, ""));
 
-    // Check first ld+json tag content
-    const firstLdMatch = body.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]{0,300})/i);
-    const firstLdPreview = firstLdMatch ? firstLdMatch[1].slice(0, 200) : "NONE";
+    // Check first ld+json tag content + nested keys
+    const firstLdMatch = body.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]{0,2000})/i);
+    let firstLdPreview = "NONE";
+    let firstLdTopKeys: string[] = [];
+    let firstLdMainEntityKeys: string[] = [];
+    let firstLdItemListSample: string[] = [];
+    if (firstLdMatch) {
+      firstLdPreview = firstLdMatch[1].slice(0, 200);
+      try {
+        const parsed = JSON.parse(firstLdMatch[1].split("</script>")[0]);
+        const entry = Array.isArray(parsed) ? parsed[0] : parsed;
+        firstLdTopKeys = Object.keys(entry || {});
+        if (entry?.mainEntity) {
+          firstLdMainEntityKeys = Object.keys(entry.mainEntity);
+          const items = entry.mainEntity?.itemListElement;
+          if (Array.isArray(items)) {
+            firstLdItemListSample = items.slice(0, 3).map((i: any) => (i?.item?.name || i?.name || JSON.stringify(i).slice(0, 50)));
+          }
+        }
+      } catch {
+        firstLdPreview += " [PARSE ERROR]";
+      }
+    }
 
     results.localch = {
       status: r.status,
@@ -50,7 +70,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       businessMatches: businessCount,
       detailLinks,
       hasNextData,
-      firstLdJsonPreview: firstLdPreview,
+      firstLdTopKeys,
+      firstLdMainEntityKeys,
+      firstLdItemListSample,
       sampleNames,
     };
   } catch (e: any) {
