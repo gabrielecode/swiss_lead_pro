@@ -49,32 +49,41 @@ export async function searchGoogleMapsPlaces(
     return [];
   }
 
-  const response = await fetch(GOOGLE_MAPS_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": [
-        "places.id",
-        "places.displayName",
-        "places.formattedAddress",
-        "places.nationalPhoneNumber",
-        "places.websiteUri",
-        "places.googleMapsUri",
-        "places.primaryTypeDisplayName",
-        "places.types",
-        "places.businessStatus",
-      ].join(","),
-    },
-    body: JSON.stringify({
-      textQuery: [keyword, location, "Svizzera"].filter(Boolean).join(" "),
-      languageCode: "it",
-      regionCode: "CH",
-      maxResultCount: radiusKm && radiusKm > 0 ? 15 : 12,
-      openNow: false,
-      strictTypeFiltering: false,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+  let response: Response;
+  try {
+    response = await fetch(GOOGLE_MAPS_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": [
+          "places.id",
+          "places.displayName",
+          "places.formattedAddress",
+          "places.nationalPhoneNumber",
+          "places.websiteUri",
+          "places.googleMapsUri",
+          "places.primaryTypeDisplayName",
+          "places.types",
+          "places.businessStatus",
+        ].join(","),
+      },
+      body: JSON.stringify({
+        textQuery: [keyword, location, "Svizzera"].filter(Boolean).join(" "),
+        languageCode: "it",
+        regionCode: "CH",
+        maxResultCount: radiusKm && radiusKm > 0 ? 15 : 12,
+        openNow: false,
+        strictTypeFiltering: false,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const payload = await response.text();

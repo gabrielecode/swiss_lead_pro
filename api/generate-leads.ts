@@ -44,7 +44,7 @@ const queryPerplexity = async ({
 
   const isOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
   const endpoint = isOpenRouter ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.perplexity.ai/chat/completions";
-  const defaultModel = isOpenRouter ? "google/gemini-flash-1.5" : "sonar-pro";
+  const defaultModel = isOpenRouter ? "meta-llama/llama-3.1-8b-instruct:free" : "sonar-pro";
 
   const response = await fetch(endpoint, {
     method: "POST",
