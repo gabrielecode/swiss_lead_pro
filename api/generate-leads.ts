@@ -466,7 +466,7 @@ const extractEmailsFromHtml = (html: string): string[] => {
   return Array.from(new Set(candidates));
 };
 
-const fetchHtmlPage = async (url: string, timeoutMs = 6000): Promise<string | null> => {
+const fetchHtmlPage = async (url: string, timeoutMs = 4000): Promise<string | null> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -646,7 +646,7 @@ const extractLocalChContactDetails = async (profileUrl: string) => {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6000);
+  const timeout = setTimeout(() => controller.abort(), 4000);
 
   try {
     const response = await fetch(profileUrl, {
@@ -725,14 +725,22 @@ const enrichLocalChLeads = async (leads: any[]) => {
         lead.address === "Non disponibile"
       )
     )
-    .slice(0, 18);
+    .slice(0, 8); // max 8 enrichment requests to stay within timeout
 
-  const results = await Promise.allSettled(
-    targets.map(async ({ lead, index }) => ({
-      index,
-      details: await extractLocalChContactDetails(lead.detailUrl),
-    })),
-  );
+  // Run in batches of 4 to avoid overloading
+  const batchSize = 4;
+  const allResults: PromiseSettledResult<{ index: number; details: any }>[] = [];
+  for (let i = 0; i < targets.length; i += batchSize) {
+    const batch = targets.slice(i, i + batchSize);
+    const batchResults = await Promise.allSettled(
+      batch.map(async ({ lead, index }) => ({
+        index,
+        details: await extractLocalChContactDetails(lead.detailUrl),
+      })),
+    );
+    allResults.push(...batchResults);
+  }
+  const results = allResults;
 
   for (const result of results) {
     if (result.status !== "fulfilled") continue;

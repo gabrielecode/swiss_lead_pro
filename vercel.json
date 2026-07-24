@@ -1,6 +1,14 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "functions": {
+    "api/generate-leads.ts": {
+      "maxDuration": 60
+    },
+    "api/extract-services.ts": {
+      "maxDuration": 30
+    }
+  }
 }
 
