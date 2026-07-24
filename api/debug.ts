@@ -30,20 +30,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
     clearTimeout(t);
     const body = await r.text();
-    // Count rough lead indicators
+    // Count indicators in different contexts
     const businessCount = (body.match(/LocalBusiness|"@type":"LocalBusiness"/g) || []).length;
-    const cardCount = (body.match(/data-testid="ResultListEntry"/g) || []).length;
-    const contactCount = (body.match(/ContactGroup/g) || []).length;
-    // Extract names from JSON-LD to verify parser
+    const ldJsonTags = (body.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/gi) || []).length;
+    const detailLinks = (body.match(/href="\/it\/d\//g) || []).length;
+    const hasNextData = body.includes('id="__NEXT_DATA__"') || body.includes("__NEXT_DATA__");
     const nameMatches = body.match(/"name":"([^"]{3,60})"/g) || [];
-    const sampleNames = nameMatches.slice(0, 5).map(s => s.replace(/"name":"/, "").replace(/"$/, ""));
+    const sampleNames = nameMatches.slice(0, 5).map((s: string) => s.replace(/"name":"/, "").replace(/"$/, ""));
+
+    // Check first ld+json tag content
+    const firstLdMatch = body.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]{0,300})/i);
+    const firstLdPreview = firstLdMatch ? firstLdMatch[1].slice(0, 200) : "NONE";
+
     results.localch = {
       status: r.status,
       ok: r.ok,
       bodyLength: body.length,
+      ldJsonTagCount: ldJsonTags,
       businessMatches: businessCount,
-      cardMatches: cardCount,
-      contactMatches: contactCount,
+      detailLinks,
+      hasNextData,
+      firstLdJsonPreview: firstLdPreview,
       sampleNames,
     };
   } catch (e: any) {
