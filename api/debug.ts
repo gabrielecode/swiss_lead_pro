@@ -74,6 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Show HTML context around first /it/d/ link to understand card structure
+    const firstDetailIdx = body.indexOf('href="/it/d/');
+    const htmlCardContext = firstDetailIdx >= 0 ? body.slice(Math.max(0, firstDetailIdx - 50), firstDetailIdx + 600) : "NOT FOUND";
+
     results.localch = {
       status: r.status,
       ok: r.ok,
@@ -87,6 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       firstLdItemCount,
       firstLdItemListSample,
       sampleNames,
+      htmlCardContext,
     };
   } catch (e: any) {
     results.localch = { error: e?.message || "fetch failed" };
