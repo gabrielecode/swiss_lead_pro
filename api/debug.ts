@@ -34,6 +34,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const businessCount = (body.match(/LocalBusiness|"@type":"LocalBusiness"/g) || []).length;
     const cardCount = (body.match(/data-testid="ResultListEntry"/g) || []).length;
     const contactCount = (body.match(/ContactGroup/g) || []).length;
+    // Extract names from JSON-LD to verify parser
+    const nameMatches = body.match(/"name":"([^"]{3,60})"/g) || [];
+    const sampleNames = nameMatches.slice(0, 5).map(s => s.replace(/"name":"/, "").replace(/"$/, ""));
     results.localch = {
       status: r.status,
       ok: r.ok,
@@ -41,6 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       businessMatches: businessCount,
       cardMatches: cardCount,
       contactMatches: contactCount,
+      sampleNames,
     };
   } catch (e: any) {
     results.localch = { error: e?.message || "fetch failed" };

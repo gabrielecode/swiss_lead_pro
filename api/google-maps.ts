@@ -86,8 +86,9 @@ export async function searchGoogleMapsPlaces(
   }
 
   if (!response.ok) {
-    const payload = await response.text();
-    throw new Error(payload || "Errore Google Maps Places API");
+    // non-fatal: log and return empty array
+    console.warn(`[Google Maps] ${response.status}: ${(await response.text()).slice(0, 200)}`);
+    return [];
   }
 
   const payload = (await response.json()) as { places?: GooglePlaceResult[] };

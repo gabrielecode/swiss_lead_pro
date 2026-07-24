@@ -75,6 +75,7 @@ const queryPerplexity = async ({
 
   if (!response.ok) {
     const message = payload?.error?.message || payload?.message || payloadText || "Errore API";
+    console.warn(`[AI API] ${response.status}: ${message.slice(0, 200)}`);
     throw new Error(message);
   }
 
