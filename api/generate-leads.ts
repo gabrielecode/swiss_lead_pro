@@ -934,7 +934,7 @@ const searchLocalCh = async (keyword: string, location?: string) => {
   const url = `https://www.local.ch/it/q?what=${encodeURIComponent(keyword)}&where=${encodeURIComponent(where)}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 5000);
 
   try {
     const response = await fetch(url, {
@@ -986,148 +986,124 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const radiusValue = Number(radius);
     const associatedKeywords = buildAssociatedKeywords(effectiveKeyword);
     const searchedKeywords = [...associatedKeywords];
-    let aggregatedLeads: any[] = [];
-    let aggregatedSources: { title: string; uri: string }[] = [];
 
-    if (hasGoogleMapsKey()) {
-      const googleTerms = associatedKeywords.slice(0, 4);
-      const googleResults = await Promise.allSettled(
-        googleTerms.map((term) => searchGoogleMapsPlaces(term, effectiveLocation, radiusValue)),
+    // ── Run ALL sources in parallel ─────────────────────────────────────────
+    const localChTerms = associatedKeywords.slice(0, 2);
+    const googleTerms = associatedKeywords.slice(0, 3);
+
+    const leadSchema = {
+      type: "object",
+      properties: {
+        leads: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              company: { type: "string" },
+              sector: { type: "string" },
+              address: { type: "string" },
+              phone: { type: "string" },
+              email: { type: "string" },
+              website: { type: "string" },
+              social: { type: "string" },
+              marketingScore: { type: "number" },
+              auditResult: { type: "string" },
+              customStrategy: { type: "string" },
+              source: { type: "string" },
+            },
+            required: [
+              "company", "sector", "address", "phone", "email",
+              "website", "social", "marketingScore", "auditResult",
+              "customStrategy", "source",
+            ],
+          },
+        },
+      },
+      required: ["leads"],
+    };
+
+    const systemPrompt = [
+      "Sei un motore di lead generation B2B per la Svizzera.",
+      "Rispondi esclusivamente in JSON valido.",
+      "La risposta deve essere un oggetto con chiave leads che contains un array.",
+      "Ogni lead deve avere: company, sector, address, phone, email, website, social, marketingScore, auditResult, customStrategy, source.",
+      "Usa solo aziende reali e pertinenti alla localita richiesta.",
+      "Non inventare email, siti web, telefoni o indirizzi: se non verificabili usa 'Non disponibile'.",
+      "Non usare markdown, nessun testo extra.",
+    ].join(" ");
+
+    // Build all tasks and run them simultaneously
+    const tasks: Promise<{ type: string; leads: any[]; sources?: any[] }>[] = [];
+
+    // Local.ch tasks
+    for (const term of localChTerms) {
+      tasks.push(
+        searchLocalCh(term, effectiveLocation).then((leads) => ({
+          type: "localch",
+          leads: leads.map((l) => normalizeLead(l, effectiveKeyword)),
+        })).catch(() => ({ type: "localch", leads: [] }))
       );
+    }
 
-      for (const result of googleResults) {
-        if (result.status !== "fulfilled") continue;
-        aggregatedLeads = aggregatedLeads.concat(
-          result.value.map((lead) =>
-            normalizeLead(
-              {
-                ...lead,
-                email: "Non disponibile",
-                detailUrl: lead.googleMapsUrl,
-                auditResult: "Lead individuato tramite Google Maps Places.",
-                customStrategy: "Contatto commerciale locale basato sulla scheda Google Maps e sulla presenza digitale.",
-              },
-              effectiveKeyword,
+    // Google Maps tasks
+    if (hasGoogleMapsKey()) {
+      for (const term of googleTerms) {
+        tasks.push(
+          searchGoogleMapsPlaces(term, effectiveLocation, radiusValue).then((places) => ({
+            type: "google",
+            leads: places.map((lead) =>
+              normalizeLead(
+                {
+                  ...lead,
+                  email: "Non disponibile",
+                  detailUrl: lead.googleMapsUrl,
+                  auditResult: "Lead individuato tramite Google Maps Places.",
+                  customStrategy: "Contatto commerciale locale basato sulla scheda Google Maps e sulla presenza digitale.",
+                },
+                effectiveKeyword,
+              )
             ),
-          ),
+          })).catch(() => ({ type: "google", leads: [] }))
         );
       }
     }
 
+    // AI (Perplexity/OpenRouter) task – single call for main keyword only
     if (hasPerplexityKey()) {
-      const leadSchema = {
-        type: "object",
-        properties: {
-          leads: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                company: { type: "string" },
-                sector: { type: "string" },
-                address: { type: "string" },
-                phone: { type: "string" },
-                email: { type: "string" },
-                website: { type: "string" },
-                social: { type: "string" },
-                marketingScore: { type: "number" },
-                auditResult: { type: "string" },
-                customStrategy: { type: "string" },
-                source: { type: "string" },
-              },
-              required: [
-                "company",
-                "sector",
-                "address",
-                "phone",
-                "email",
-                "website",
-                "social",
-                "marketingScore",
-                "auditResult",
-                "customStrategy",
-                "source",
-              ],
-            },
-          },
-        },
-        required: ["leads"],
-      };
-
-      const systemPrompt = [
-        "Sei un motore di lead generation B2B per la Svizzera.",
-        "Rispondi esclusivamente in JSON valido.",
-        "La risposta deve essere un oggetto con chiave leads che contains un array.",
-        "Ogni lead deve avere: company, sector, address, phone, email, website, social, marketingScore, auditResult, customStrategy, source.",
-        "Usa solo aziende reali e pertinenti alla localita richiesta.",
-        "Non inventare email, siti web, telefoni o indirizzi: se non verificabili usa 'Non disponibile'.",
-        "Non usare markdown, nessun testo extra.",
-      ].join(" ");
-
-      const termsToSearch = associatedKeywords.slice(0, 6);
-      const perplexityTasks = termsToSearch.map(async (term) => {
-        const userPrompt = `Trova almeno 30 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
-        const aiResult = await queryPerplexity({
+      const term = associatedKeywords[0];
+      const userPrompt = `Trova almeno 20 aziende nel settore "${term}" ${effectiveLocation ? `a ${effectiveLocation}` : "in Svizzera"}${radiusValue > 0 ? ` entro ${radiusValue} km` : ""}.`;
+      tasks.push(
+        queryPerplexity({
           systemPrompt,
           userPrompt,
           temperature: 0.2,
-          maxTokens: 4000,
-          responseFormat: {
-            type: "json_schema",
-            json_schema: {
-              name: "lead_response",
-              schema: leadSchema,
-            },
-          },
-        });
-
-        return {
-          term,
+          maxTokens: 3000,
+          responseFormat: { type: "json_schema", json_schema: { name: "lead_response", schema: leadSchema } },
+        }).then((aiResult) => ({
+          type: "ai",
           leads: parseLeadsFromText(aiResult.text).map((lead) => normalizeLead(lead, effectiveKeyword)),
           sources: aiResult.sources,
-        };
-      });
+        })).catch(() => ({ type: "ai", leads: [], sources: [] }))
+      );
+    }
 
-      const perplexityResults = await Promise.allSettled(perplexityTasks);
-      for (const result of perplexityResults) {
-        if (result.status === "fulfilled") {
-          aggregatedLeads = aggregatedLeads.concat(result.value.leads);
-          aggregatedSources = aggregatedSources.concat(result.value.sources);
-        }
+    // Wait for all sources in parallel
+    const results = await Promise.allSettled(tasks);
+
+    let aggregatedLeads: any[] = [];
+    let aggregatedSources: { title: string; uri: string }[] = [];
+
+    for (const result of results) {
+      if (result.status !== "fulfilled") continue;
+      aggregatedLeads = aggregatedLeads.concat(result.value.leads);
+      if (result.value.sources) {
+        aggregatedSources = aggregatedSources.concat(result.value.sources);
       }
     }
 
-    // Estrazione e unione dei dati reali da Local.ch
-    const runLocalChBatch = async (terms: string[]) => {
-      const localResultsSettled = await Promise.allSettled(terms.map((term) => searchLocalCh(term, effectiveLocation)));
-      const collected: any[] = [];
-      for (const result of localResultsSettled) {
-        if (result.status === "fulfilled" && result.value.length > 0) {
-          collected.push(...result.value);
-        }
-      }
-      return collected;
-    };
-
-    const initialLocalTerms = associatedKeywords.slice(0, 4);
-    let localLeads = await runLocalChBatch(initialLocalTerms);
-    const discoveredCategoryTerms = deriveLocalChAssociatedKeywords(localLeads, searchedKeywords);
-
-    for (const term of discoveredCategoryTerms) {
-      searchedKeywords.push(term);
-    }
-
-    if (discoveredCategoryTerms.length > 0) {
-      localLeads = localLeads.concat(await runLocalChBatch(discoveredCategoryTerms));
-    }
-
-    for (const lead of localLeads.map((lead) => normalizeLead(lead, effectiveKeyword))) {
-      aggregatedLeads.push(lead);
-    }
-
+    // Lightweight enrichment: open at most 4 local.ch detail pages
     let finalLeads = dedupeLeads(aggregatedLeads);
     finalLeads = await enrichLocalChLeads(finalLeads);
-    finalLeads = await enrichLeadsFromWebsiteContacts(finalLeads);
     finalLeads = dedupeLeads(finalLeads)
       .sort((left, right) => scoreLeadQuality(right) - scoreLeadQuality(left) || left.company.localeCompare(right.company));
 
