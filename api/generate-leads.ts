@@ -785,9 +785,19 @@ const deriveLocalChAssociatedKeywords = (leads: any[], seedTerms: string[]) => {
   return discovered.slice(0, 6);
 };
 
+const slugToCompanyName = (slug: string): string => {
+  // Strip the trailing "-d-XXXX" ID suffix that local.ch appends to company slugs
+  const cleaned = slug.replace(/-d-[A-Za-z0-9_-]{10,}$/, "");
+  return cleaned
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+};
+
 const parseLocalChHtmlCards = (html: string, keyword: string, location?: string) => {
   const results = new Map<string, any>();
-  const cardRegex = /href="(\/it\/d\/[^"]+)"[\s\S]{0,800}?<h2[^>]*>([^<]+)<\/h2>[\s\S]{0,300}?<span[^>]*>([^<]+)<\/span>/gi;
+  // Extract company names from /it/d/ href slugs (works even without <h2> tags)
+  const hrefRegex = /href="(\/it\/d\/([^/]+)\/(\d+)\/([^/]+)\/([^"]+))"/gi;
   const forbiddenPatterns = [
     /Filtrabile per/i,
     /I migliori/i,
@@ -800,14 +810,16 @@ const parseLocalChHtmlCards = (html: string, keyword: string, location?: string)
   ];
   let match: RegExpExecArray | null;
 
-  while ((match = cardRegex.exec(html))) {
-    const detailUrl = `https://www.local.ch${match[1]}`;
-    const company = cleanHtmlText(match[2]);
-    const categoryLabel = cleanHtmlText(match[3]);
-    const categories = splitLocalChCategories(categoryLabel);
-    const sector = categories[0] || categoryFromDetailUrl(detailUrl) || keyword;
+  while ((match = hrefRegex.exec(html))) {
+    const path = match[1];           // /it/d/lugano/6900/impianti-sanitari/company-slug-d-ID
+    const companySlugPart = match[5]; // company-slug-d-ID
+    const categorySlug = match[4];   // impianti-sanitari
+    const detailUrl = `https://www.local.ch${path}`;
+    const company = slugToCompanyName(companySlugPart);
+    const categories = splitLocalChCategories(categorySlug.replace(/-/g, " "));
+    const sector = categories[0] || keyword;
 
-    if (!company || forbiddenPatterns.some((pattern) => pattern.test(company))) {
+    if (!company || company.length < 3 || forbiddenPatterns.some((pattern) => pattern.test(company))) {
       continue;
     }
 
@@ -820,7 +832,7 @@ const parseLocalChHtmlCards = (html: string, keyword: string, location?: string)
         email: "Non disponibile",
         website: "Non disponibile",
         social: "Non disponibile",
-        marketingScore: 58,
+        marketingScore: 55,
         auditResult: `Lead individuato da local.ch nella categoria ${sector}.`,
         customStrategy: "Contatto commerciale locale con focus geolocalizzato.",
         source: "local.ch",
@@ -914,6 +926,34 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
       extractBusinessesDeep(parsed);
     } catch {
       continue;
+    }
+  }
+
+  // Fallback: if the ld+json regex was cut short by an embedded </script>,
+  // extract itemListElement arrays directly from raw HTML using brace-counting.
+  if (leads.length === 0) {
+    let searchPos = 0;
+    while (true) {
+      const ilPos = html.indexOf('"itemListElement":', searchPos);
+      if (ilPos < 0) break;
+      const arrStart = html.indexOf("[", ilPos);
+      if (arrStart < 0) break;
+      let depth = 0;
+      let end = arrStart;
+      for (; end < html.length; end++) {
+        if (html[end] === "[" || html[end] === "{") depth++;
+        else if (html[end] === "]" || html[end] === "}") {
+          depth--;
+          if (depth === 0) { end++; break; }
+        }
+      }
+      try {
+        const items = JSON.parse(html.slice(arrStart, end));
+        if (Array.isArray(items)) {
+          for (const item of items) extractBusinessesDeep(item);
+        }
+      } catch { /* skip malformed chunk */ }
+      searchPos = ilPos + 1;
     }
   }
 
