@@ -78,27 +78,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const firstDetailIdx = body.indexOf('href="/it/d/');
     const htmlCardContext = firstDetailIdx >= 0 ? body.slice(Math.max(0, firstDetailIdx - 50), firstDetailIdx + 600) : "NOT FOUND";
 
-    // Find exact context around a real company name
-    const namePos = body.indexOf("Acqua Tre Service Sagl");
-    const nameContext = namePos >= 0 
-      ? body.slice(Math.max(0, namePos - 200), namePos + 300)
-      : "NOT FOUND IN HTML";
+    // Test the actual parser: brace-counting itemListElement extractor
+    let parserFoundItems = 0;
+    let parserSample: string[] = [];
+    let parserError = "";
+    let ldJsonParseOk = false;
+    let ldJsonParseError = "";
+
+    // Test 1: does JSON.parse succeed on the ld+json tag?
+    if (fullLdMatch) {
+      try {
+        JSON.parse(fullLdMatch[1].trim());
+        ldJsonParseOk = true;
+      } catch (e: any) {
+        ldJsonParseError = e?.message?.slice(0, 120) || "parse error";
+      }
+    }
+
+    // Test 2: brace-counting extractor (same logic as generate-leads fallback)
+    try {
+      let searchPos = 0;
+      while (parserFoundItems < 100) {
+        const ilPos = body.indexOf('"itemListElement":', searchPos);
+        if (ilPos < 0) break;
+        const arrStart = body.indexOf("[", ilPos);
+        if (arrStart < 0) break;
+        let depth = 0;
+        let end = arrStart;
+        for (; end < body.length; end++) {
+          if (body[end] === "[" || body[end] === "{") depth++;
+          else if (body[end] === "]" || body[end] === "}") {
+            depth--;
+            if (depth === 0) { end++; break; }
+          }
+        }
+        const items = JSON.parse(body.slice(arrStart, end));
+        if (Array.isArray(items)) {
+          parserFoundItems += items.length;
+          parserSample = items.slice(0, 3).map((i: any) => i?.name || i?.["@type"] || "?");
+        }
+        searchPos = ilPos + 1;
+      }
+    } catch (e: any) {
+      parserError = e?.message?.slice(0, 120) || "error";
+    }
+
+    // Test 3: slug-based href extractor
+    const hrefMatches = body.match(/href="\/it\/d\/[^/]+\/\d+\/[^/]+\/[^"]+"/g) || [];
 
     results.localch = {
       status: r.status,
       ok: r.ok,
       bodyLength: body.length,
       ldJsonTagCount: ldJsonTags,
+      ldJsonParseOk,
+      ldJsonParseError: ldJsonParseError || undefined,
       businessMatches: businessCount,
       detailLinks,
-      hasNextData,
-      firstLdTopKeys,
-      firstLdMainEntityType,
-      firstLdItemCount,
-      firstLdItemListSample,
-      sampleNames,
-      htmlCardContext: body.slice(Math.max(0, firstDetailIdx - 50), firstDetailIdx + 400),
-      nameContext,
+      parserFoundItems,
+      parserSample,
+      parserError: parserError || undefined,
+      hrefLinksFound: hrefMatches.length,
+      hrefSample: hrefMatches.slice(0, 2),
     };
   } catch (e: any) {
     results.localch = { error: e?.message || "fetch failed" };
