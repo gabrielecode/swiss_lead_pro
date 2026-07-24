@@ -51,14 +51,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         firstLdTopKeys = Object.keys(entry || {});
         const mainEntity = entry?.mainEntity;
         if (mainEntity) {
-          firstLdMainEntityType = mainEntity?.["@type"] || "";
-          const items = mainEntity?.itemListElement;
-          if (Array.isArray(items)) {
-            firstLdItemCount = items.length;
-            firstLdItemListSample = items.slice(0, 5).map((i: any) => {
-              const biz = i?.item || i;
-              return biz?.name || JSON.stringify(biz).slice(0, 40);
-            });
+          firstLdMainEntityType = mainEntity?.["@type"] || (Array.isArray(mainEntity) ? "ARRAY" : typeof mainEntity);
+          if (Array.isArray(mainEntity)) {
+            firstLdItemCount = mainEntity.length;
+            firstLdItemListSample = mainEntity.slice(0, 5).map((i: any) => i?.name || JSON.stringify(i).slice(0, 60));
+          } else {
+            const items = mainEntity?.itemListElement;
+            if (Array.isArray(items)) {
+              firstLdItemCount = items.length;
+              firstLdItemListSample = items.slice(0, 5).map((i: any) => {
+                const biz = i?.item || i;
+                return biz?.name || JSON.stringify(biz).slice(0, 40);
+              });
+            } else {
+              // Show all keys of mainEntity for further debugging
+              firstLdItemListSample = ["mainEntity keys: " + Object.keys(mainEntity).join(", ")];
+            }
           }
         }
       } catch (e: any) {
