@@ -38,27 +38,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const nameMatches = body.match(/"name":"([^"]{3,60})"/g) || [];
     const sampleNames = nameMatches.slice(0, 5).map((s: string) => s.replace(/"name":"/, "").replace(/"$/, ""));
 
-    // Check first ld+json tag content + nested keys
-    const firstLdMatch = body.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]{0,2000})/i);
-    let firstLdPreview = "NONE";
+    // Check first ld+json tag content + nested keys - FULL extraction
+    const fullLdMatch = body.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
     let firstLdTopKeys: string[] = [];
-    let firstLdMainEntityKeys: string[] = [];
+    let firstLdMainEntityType = "";
     let firstLdItemListSample: string[] = [];
-    if (firstLdMatch) {
-      firstLdPreview = firstLdMatch[1].slice(0, 200);
+    let firstLdItemCount = 0;
+    if (fullLdMatch) {
       try {
-        const parsed = JSON.parse(firstLdMatch[1].split("</script>")[0]);
+        const parsed = JSON.parse(fullLdMatch[1].trim());
         const entry = Array.isArray(parsed) ? parsed[0] : parsed;
         firstLdTopKeys = Object.keys(entry || {});
-        if (entry?.mainEntity) {
-          firstLdMainEntityKeys = Object.keys(entry.mainEntity);
-          const items = entry.mainEntity?.itemListElement;
+        const mainEntity = entry?.mainEntity;
+        if (mainEntity) {
+          firstLdMainEntityType = mainEntity?.["@type"] || "";
+          const items = mainEntity?.itemListElement;
           if (Array.isArray(items)) {
-            firstLdItemListSample = items.slice(0, 3).map((i: any) => (i?.item?.name || i?.name || JSON.stringify(i).slice(0, 50)));
+            firstLdItemCount = items.length;
+            firstLdItemListSample = items.slice(0, 5).map((i: any) => {
+              const biz = i?.item || i;
+              return biz?.name || JSON.stringify(biz).slice(0, 40);
+            });
           }
         }
-      } catch {
-        firstLdPreview += " [PARSE ERROR]";
+      } catch (e: any) {
+        firstLdTopKeys = ["PARSE_ERROR: " + e?.message?.slice(0, 100)];
       }
     }
 
@@ -71,7 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       detailLinks,
       hasNextData,
       firstLdTopKeys,
-      firstLdMainEntityKeys,
+      firstLdMainEntityType,
+      firstLdItemCount,
       firstLdItemListSample,
       sampleNames,
     };
