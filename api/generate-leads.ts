@@ -849,13 +849,12 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
   const matches = Array.from(html.matchAll(scriptRegex));
   const extractedEmails = extractEmailsFromHtml(html);
 
-  // FILTRI RIGIDI: Scarta pubblicità, menu e il sito stesso
   const forbiddenPatterns = [
-    /Filtrabile per/i, 
-    /I migliori/i, 
+    /Filtrabile per/i,
+    /I migliori/i,
     /Migliori servizi/i,
-    /Trova il tuo/i, 
-    /Offerte/i, 
+    /Trova il tuo/i,
+    /Offerte/i,
     /\blocal\.ch\b/i,
     /pubblicit|annuncio|sponsored|advert/i,
     /[🔥⭐]/,
@@ -864,8 +863,6 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
   const pushLead = (item: any) => {
     const name = item?.name || item?.legalName;
     if (!name || typeof name !== "string") return;
-    
-    // Blocca il caricamento se corrisponde a una pubblicità
     if (forbiddenPatterns.some(pattern => pattern.test(name.trim()))) return;
 
     const addressObj = item?.address;
@@ -892,37 +889,29 @@ const parseLocalChLeads = (html: string, keyword: string, location?: string) => 
     });
   };
 
+  // Recursive extractor: finds ALL LocalBusiness objects at any depth
+  const extractBusinessesDeep = (obj: any): void => {
+    if (!obj || typeof obj !== "object") return;
+    if (Array.isArray(obj)) {
+      for (const item of obj) extractBusinessesDeep(item);
+      return;
+    }
+    const type = obj["@type"];
+    if (type === "LocalBusiness" || (typeof type === "string" && type.includes("Business"))) {
+      pushLead(obj);
+      return;
+    }
+    for (const val of Object.values(obj)) {
+      if (val && typeof val === "object") extractBusinessesDeep(val);
+    }
+  };
+
   for (const match of matches) {
     const payload = match[1]?.trim();
     if (!payload) continue;
-
     try {
       const parsed = JSON.parse(payload);
-      const queue = Array.isArray(parsed) ? parsed : [parsed];
-
-      for (const entry of queue) {
-        // Level 1: direct itemListElement
-        if (entry?.itemListElement && Array.isArray(entry.itemListElement)) {
-          for (const item of entry.itemListElement) {
-            pushLead(item?.item || item);
-          }
-        }
-        // Level 2: CollectionPage → mainEntity → itemListElement (local.ch current structure)
-        else if (entry?.mainEntity?.itemListElement && Array.isArray(entry.mainEntity.itemListElement)) {
-          for (const item of entry.mainEntity.itemListElement) {
-            pushLead(item?.item || item);
-          }
-        }
-        // Level 3: CollectionPage → mainEntity is itself a LocalBusiness list
-        else if (Array.isArray(entry?.mainEntity)) {
-          for (const item of entry.mainEntity) {
-            pushLead(item?.item || item);
-          }
-        }
-        else {
-          pushLead(entry);
-        }
-      }
+      extractBusinessesDeep(parsed);
     } catch {
       continue;
     }
