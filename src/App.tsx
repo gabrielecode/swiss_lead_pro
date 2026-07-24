@@ -123,6 +123,10 @@ export default function App() {
   const [generatedProposal, setGeneratedProposal] = useState<string | null>(null);
   const [proposalTone, setProposalTone] = useState<"formale" | "creativo" | "diretto">("formale");
   const [proposalService, setProposalService] = useState("Funnel & Lead Generation Google Ads");
+  const [proposalCustomUrl, setProposalCustomUrl] = useState("");
+  const [customServices, setCustomServices] = useState<string[]>([]);
+  const [isExtractingServices, setIsExtractingServices] = useState(false);
+  const [extractServicesError, setExtractServicesError] = useState<string | null>(null);
 
   // AI Assistant States
   const [aiPrompt, setAiPrompt] = useState("");
@@ -339,6 +343,32 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
       setGeneratedProposal("Errore nella generazione della proposta AI: " + err.message);
     } finally {
       setIsGeneratingProposal(false);
+    }
+  };
+
+  const handleExtractServices = async () => {
+    if (!proposalCustomUrl.trim()) return;
+    setIsExtractingServices(true);
+    setExtractServicesError(null);
+    setCustomServices([]);
+    try {
+      const res = await fetch("/api/extract-services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: proposalCustomUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Errore estrazione servizi");
+      if (Array.isArray(data.services) && data.services.length > 0) {
+        setCustomServices(data.services);
+        setProposalService(data.services[0]);
+      } else {
+        setExtractServicesError("Nessun servizio trovato nel sito.");
+      }
+    } catch (err: any) {
+      setExtractServicesError(err.message || "Errore durante l'estrazione.");
+    } finally {
+      setIsExtractingServices(false);
     }
   };
 
@@ -1290,7 +1320,56 @@ Scrivi l'email interamente in lingua italiana, utilizzando un tono professionale
                               <option value="Social Media Management & Instagram Local Ads">Meta Ads & Instagram</option>
                               <option value="Ottimizzazione Scheda Google My Business & Recensioni">Audit Google Maps & Recensioni</option>
                               <option value="Consulenza di Crescita B2B & CRM Automation">Consulenza Strategica B2B</option>
+                              {customServices.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
                             </select>
+
+                            {/* URL extraction panel */}
+                            <div className="mt-2 bg-slate-50 border border-dashed border-slate-300 rounded-xl p-3 space-y-2">
+                              <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
+                                Oppure estrai i tuoi servizi da un sito web:
+                              </p>
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="url"
+                                  placeholder="https://tuo-sito.ch"
+                                  value={proposalCustomUrl}
+                                  onChange={(e) => setProposalCustomUrl(e.target.value)}
+                                  onKeyDown={(e) => e.key === "Enter" && handleExtractServices()}
+                                  className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 px-2.5 py-1.5 outline-hidden focus:border-red-400 placeholder:text-slate-400"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleExtractServices}
+                                  disabled={isExtractingServices || !proposalCustomUrl.trim()}
+                                  className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  {isExtractingServices ? "…" : "Estrai"}
+                                </button>
+                              </div>
+                              {extractServicesError && (
+                                <p className="text-[10px] text-red-500">{extractServicesError}</p>
+                              )}
+                              {customServices.length > 0 && (
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {customServices.map((s) => (
+                                    <button
+                                      key={s}
+                                      type="button"
+                                      onClick={() => setProposalService(s)}
+                                      className={`px-2 py-1 rounded-lg text-[10px] border transition-all cursor-pointer ${
+                                        proposalService === s
+                                          ? "bg-red-600 text-white border-red-700 font-bold"
+                                          : "bg-white text-slate-700 border-slate-200 hover:border-red-400"
+                                      }`}
+                                    >
+                                      {s}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div>
