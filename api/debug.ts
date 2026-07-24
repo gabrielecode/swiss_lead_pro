@@ -78,6 +78,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const firstDetailIdx = body.indexOf('href="/it/d/');
     const htmlCardContext = firstDetailIdx >= 0 ? body.slice(Math.max(0, firstDetailIdx - 50), firstDetailIdx + 600) : "NOT FOUND";
 
+    // Find exact context around a real company name
+    const namePos = body.indexOf("Acqua Tre Service Sagl");
+    const nameContext = namePos >= 0 
+      ? body.slice(Math.max(0, namePos - 200), namePos + 300)
+      : "NOT FOUND IN HTML";
+
     results.localch = {
       status: r.status,
       ok: r.ok,
@@ -91,7 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       firstLdItemCount,
       firstLdItemListSample,
       sampleNames,
-      htmlCardContext,
+      htmlCardContext: body.slice(Math.max(0, firstDetailIdx - 50), firstDetailIdx + 400),
+      nameContext,
     };
   } catch (e: any) {
     results.localch = { error: e?.message || "fetch failed" };
