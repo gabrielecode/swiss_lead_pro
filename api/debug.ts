@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || "mistralai/mistral-7b-instruct",
+          model: process.env.OPENROUTER_MODEL || "google/gemini-flash-1.5",
           max_tokens: 10,
           messages: [{ role: "user", content: "say hi" }],
         }),

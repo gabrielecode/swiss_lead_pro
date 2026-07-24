@@ -1101,9 +1101,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Lightweight enrichment: open at most 4 local.ch detail pages
+    // Lightweight dedup and sort — no enrichment to stay under 10s timeout
     let finalLeads = dedupeLeads(aggregatedLeads);
-    finalLeads = await enrichLocalChLeads(finalLeads);
     finalLeads = dedupeLeads(finalLeads)
       .sort((left, right) => scoreLeadQuality(right) - scoreLeadQuality(left) || left.company.localeCompare(right.company));
 
